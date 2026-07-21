@@ -44,27 +44,34 @@
     --radius:14px;
   }
   *{box-sizing:border-box}
-  html,body{margin:0;padding:0}
+  html,body{margin:0;padding:0;height:100%}
   body{
     background:var(--paper); color:var(--ink);
     font-family:"Plus Jakarta Sans",system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
     line-height:1.55;-webkit-font-smoothing:antialiased;
-    padding:32px 18px;
+    display:flex;align-items:center;justify-content:center;
   }
-  /* one continuous card, sized to its content — no fixed height, no
-     internal scrollbar. The whole page scrolls normally if it's ever
-     taller than the viewport, same as any ordinary web page. */
+  /* fixed-size window — same footprint as the Show-section comics, light
+     instead of dark. A pinned header + fixed-height scene + one panel
+     mean everything for a phase fits without scrolling; .panel keeps a
+     scroll fallback only as a safety net, not as the intended reading mode. */
   .stage{
-    max-width:860px;margin:0 auto;
-    background:var(--card);
-    border-radius:20px;overflow:hidden;
+    width:min(920px,96vw); height:min(640px,92vh);
+    display:flex;flex-direction:column;overflow:hidden;
+    border-radius:20px;
     box-shadow:0 1px 2px rgba(19,38,59,.06),0 20px 48px rgba(19,38,59,.14);
+    background:var(--card);
   }
+  /* once the role-play is finished, the scene and rail/warmth give way
+     entirely to the panel so the wrap-up has the full window to work with */
+  .stage.finished .scene,
+  .stage.finished .rail,
+  .stage.finished .warmth{display:none}
 
   /* ---------- header / status ---------- */
   .topbar{
     background:var(--card);border-bottom:1px solid var(--line);
-    padding:20px 24px 18px;
+    padding:14px 20px 12px;flex-shrink:0;
   }
   .eyebrow{font-size:.72rem;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);font-weight:700;margin:0 0 4px}
   .title{font-family:"Fraunces",Georgia,serif;font-weight:600;color:var(--navy);font-size:1.5rem;line-height:1.15;margin:0 0 12px}
@@ -87,9 +94,9 @@
   /* ---------- photo scene ---------- */
   .scene{
     position:relative;width:100%;overflow:hidden;
-    background:#22303c;aspect-ratio:1600/1067;
+    background:#22303c;flex-shrink:0;height:200px;
   }
-  .scene-img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block}
+  .scene-img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 35%;display:block}
   .scene::after{ /* soft top scrim so bubbles read on any photo */
     content:"";position:absolute;inset:0;pointer-events:none;
     background:linear-gradient(180deg,rgba(255,255,255,.28) 0%,rgba(255,255,255,0) 34%,rgba(0,0,0,0) 70%,rgba(0,0,0,.10) 100%);
@@ -148,10 +155,12 @@
   /* ---------- interaction panel ---------- */
   .panel{
     background:var(--card);border-top:1px solid var(--line);
-    padding:24px;position:relative;z-index:6;
+    flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;
+    padding:18px 20px;position:relative;z-index:6;
   }
-  .prompt-q{font-weight:700;color:var(--navy);margin:0 0 12px;font-size:1rem}
-  .choices{display:flex;flex-direction:column;gap:10px}
+  .prompt-q{font-weight:700;color:var(--navy);margin:0 0 10px;font-size:1rem}
+  .choices{display:flex;flex-direction:column;gap:8px}
+  .choice.other-hidden{display:none}
   .choice{
     text-align:left;width:100%;cursor:pointer;background:var(--card);
     border:1.5px solid var(--line);border-radius:12px;padding:13px 15px;
@@ -165,7 +174,7 @@
   .choice.picked-good{border-color:var(--warm);background:var(--warm-soft)}
   .choice.picked-bad{border-color:var(--cool);background:var(--cool-soft)}
 
-  .verdict{margin-top:14px;border-radius:12px;padding:14px 16px;font-size:.94rem;animation:rise .3s ease both}
+  .verdict{margin-top:10px;border-radius:12px;padding:10px 14px;font-size:.9rem;animation:rise .3s ease both}
   .verdict.good{background:var(--warm-soft);border:1px solid #BFE0CE}
   .verdict.bad{background:var(--cool-soft);border:1px solid #F0CFCC}
   .verdict .tag{font-size:.68rem;letter-spacing:.1em;text-transform:uppercase;font-weight:700;display:block;margin-bottom:4px}
@@ -173,32 +182,32 @@
   .verdict p{margin:0}
   @keyframes rise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
 
-  .actions{margin-top:16px;display:flex;justify-content:flex-end;gap:10px}
+  .actions{margin-top:12px;display:flex;justify-content:flex-end;gap:10px}
   .btn{font:inherit;font-weight:700;font-size:.92rem;cursor:pointer;border-radius:10px;padding:11px 20px;border:1.5px solid var(--navy);background:var(--navy);color:#fff;transition:background .15s,transform .05s}
   .btn:hover{background:#123a63} .btn:active{transform:translateY(1px)}
   .btn:focus-visible{outline:3px solid #A9C7E8;outline-offset:2px}
   .btn.ghost{background:transparent;color:var(--navy)} .btn.ghost:hover{background:#EDF3F8}
 
-  .setup-body{color:var(--ink-soft);margin:0 0 12px}
+  .setup-body{color:var(--ink-soft);margin:0 0 10px;font-size:.94rem}
 
   /* ---------- final ---------- */
-  .final{padding:6px 4px 2px}
-  .final .badge{width:56px;height:56px;border-radius:50%;margin:0 auto 12px;background:var(--warm-soft);color:var(--warm);display:flex;align-items:center;justify-content:center;font-size:1.7rem}
-  .final h2{font-family:"Fraunces",Georgia,serif;font-weight:600;color:var(--navy);font-size:1.35rem;margin:0 0 10px;text-align:center}
-  .final .lead{color:var(--ink-soft);margin:0 auto 16px;max-width:56ch;text-align:center}
-  .recap{border:1px solid var(--line);border-radius:12px;padding:6px 14px;margin:0 0 16px;background:#F7FAFC}
-  .recap h3{font-size:.7rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin:12px 0 8px}
-  .recap .line{display:flex;gap:8px;margin:0 0 9px;font-size:.88rem;line-height:1.4}
-  .recap .line .w{font-weight:800;flex:0 0 auto;font-size:.6rem;letter-spacing:.08em;text-transform:uppercase;padding-top:3px;width:56px}
-  .recap .line.you .w{color:var(--you)} .recap .line.jill .w{color:var(--jill)}
-  .code-box{display:block;width:max-content;margin:0 auto;padding:12px 22px;border:2px dashed var(--navy);border-radius:12px;background:#F7FAFC;text-align:center}
-  .code-box .lbl{font-size:.68rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:700;display:block;margin-bottom:2px}
-  .code-box .code{font-family:"Fraunces",Georgia,serif;font-size:1.5rem;font-weight:600;letter-spacing:.06em;color:var(--navy)}
-  .final .foot{text-align:center;color:var(--ink-soft);margin:14px auto 0;max-width:52ch}
+  .final{padding:4px 2px 0}
+  .final .badge{width:44px;height:44px;border-radius:50%;margin:0 auto 8px;background:var(--warm-soft);color:var(--warm);display:flex;align-items:center;justify-content:center;font-size:1.4rem}
+  .final h2{font-family:"Fraunces",Georgia,serif;font-weight:600;color:var(--navy);font-size:1.2rem;margin:0 0 6px;text-align:center}
+  .final .lead{color:var(--ink-soft);margin:0 auto 12px;max-width:60ch;text-align:center;font-size:.92rem}
+  .recap{margin:0 0 12px}
+  .recap h3{font-size:.68rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin:0 0 6px}
+  .recap ul{list-style:none;margin:0;padding:0}
+  .recap li{position:relative;padding-left:16px;margin:0 0 6px;font-size:.88rem;line-height:1.4;color:var(--ink)}
+  .recap li::before{content:"";position:absolute;left:0;top:7px;width:6px;height:6px;border-radius:50%;background:var(--warm)}
+  .code-box{display:block;width:max-content;margin:0 auto;padding:8px 18px;border:2px dashed var(--navy);border-radius:12px;background:#F7FAFC;text-align:center}
+  .code-box .lbl{font-size:.66rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:700;display:block;margin-bottom:2px}
+  .code-box .code{font-family:"Fraunces",Georgia,serif;font-size:1.3rem;font-weight:600;letter-spacing:.06em;color:var(--navy)}
+  .final .foot{text-align:center;color:var(--ink-soft);margin:10px auto 0;max-width:52ch;font-size:.86rem}
 
   @media (max-width:560px){
-    body{padding:0}
-    .stage{border-radius:0}
+    .stage{width:100vw;height:100vh;border-radius:0}
+    .scene{height:160px}
     .title{font-size:1.25rem}
     .step{font-size:0;min-width:0}
     .bubble{max-width:66%;padding:7px 10px 8px}
@@ -248,15 +257,21 @@ const UI = {
   continueBtn:"Continue",
   tryAgainBtn:"Try another response",
   setupHeading:"Before you begin",
-  setupTask:"Your job is the Needs Analysis: understand Jill fully before you offer anything. Walk all seven phases. Do not present a course, a plan, or a price — that comes later.",
+  setupTask:"Understand Jill fully before you offer anything — walk all seven phases. No course, plan, or price yet.",
   startBtn:"Start the conversation",
   youLabel:"You (Consultant)",
   jillLabel:"Jill",
   phases:["Ice","Past","Present","Future","Talk","Hot Button","Frame"],
-  recapTitle:"The conversation you led",
+  recapTitle:"What made this work",
+  recapBullets:[
+    "A warm, human opening — before any real questions.",
+    "Open questions uncovered the real story: speaking, not reading, is the struggle.",
+    "The Hot Button: failing twice made her doubt herself — that's the emotional reason she'll commit.",
+    "You framed back what you heard before offering anything."
+  ],
   finalBadge:"✓",
   finalTitle:"You completed Jill's Needs Analysis",
-  finalBody:"You walked all seven phases without pushing a solution too soon. You listened, you opened the future, and you reached the Hot Button — the feeling that will make Jill commit. Remember: this is discovery only. You present the solution after this, once you have earned the right to.",
+  finalBody:"You walked all seven phases without pushing a solution too soon. This was discovery only — the solution comes next, once you've earned the right to it.",
   codeLabel:"Your completion code",
   code:"DISCOVERY-8020",
   finalFoot:"Enter this code on the next screen to record that you finished the role-play."
@@ -268,7 +283,7 @@ const UI = {
 const SCENARIO = {
   persona:{
     name:"Jill",
-    intro:"Jill is 23. She is a university student who has failed two English entrance exams. She dreams of studying at a university in the United States. She is friendly but a little discouraged about her English. You are her Wall Street English consultant. This is her first appointment."
+    intro:"Jill, 23, has failed two English entrance exams and dreams of studying in the US. Friendly but discouraged. You're her consultant — this is her first appointment."
   },
   startWarmth:55,
   phases:[
@@ -279,13 +294,13 @@ const SCENARIO = {
       options:[
         { text:"\u201cHi Jill, it's really nice to meet you. Thank you for coming in today. How was your journey over?\u201d", correct:true, delta:+10,
           reaction:{who:"jill", text:"Oh, thank you. It was fine, actually. I'm feeling a bit better already.", audio:null},
-          coach:"A warm, easy opening lets Jill relax before any real questions. This is how trust starts." },
+          coach:"A warm, easy opening lets Jill relax — that's how trust starts." },
         { text:"\u201cGreat, you're here for English classes. Let me show you what we offer.\u201d", correct:false, delta:-12,
           reaction:{who:"jill", text:"Oh… okay. I haven't really said what I'm looking for yet.", audio:null},
-          coach:"We opened with the product, not the person. In the Needs Analysis we earn the right to present later. Start with warmth." },
+          coach:"That's product before person. Earn the right to present later — start with warmth." },
         { text:"\u201cYou want to improve your English, correct?\u201d", correct:false, delta:-6,
           reaction:{who:"jill", text:"Um, yes… I suppose so.", audio:null},
-          coach:"A closed question makes a cold start. Open the conversation like a real welcome, not a form to fill in." }
+          coach:"A closed question makes a cold start — open like a real welcome, not a form." }
       ]},
     { key:"past",
       note:"Jill is settled. Now you want to understand her story with English.",
@@ -293,10 +308,10 @@ const SCENARIO = {
       options:[
         { text:"\u201cCan you tell me a little about your experience with English so far?\u201d", correct:true, delta:+8,
           reaction:{who:"jill", text:"I studied it at school and at university. But I've failed the entrance exam twice now. I always get stuck when I have to speak.", audio:null},
-          coach:"An open question lets Jill tell her own story — and she has just shared something important." },
+          coach:"An open question let Jill tell her own story — and she just shared something important." },
         { text:"\u201cDid you study English at school? For how many years?\u201d", correct:false, delta:-6,
           reaction:{who:"jill", text:"Yes. About ten years, I think.", audio:null},
-          coach:"Closed questions get short answers. You learned a number, but not her story. Open it up." }
+          coach:"Closed questions get short answers — you learned a number, not her story." }
       ]},
     { key:"present",
       note:"You know a little of her past. Now the present — where English sits in her life today.",
@@ -304,10 +319,10 @@ const SCENARIO = {
       options:[
         { text:"\u201cAnd right now, where do you notice English matters most in your daily life?\u201d", correct:true, delta:+8,
           reaction:{who:"jill", text:"Mostly at university. My reading is okay, honestly. But speaking in seminars really scares me.", audio:null},
-          coach:"Now you know where the real difficulty is: speaking, not reading. That's discovery working." },
+          coach:"Now you know the real difficulty: speaking, not reading. That's discovery working." },
         { text:"\u201cDon't worry — our method fixes speaking problems quickly.\u201d", correct:false, delta:-12,
           reaction:{who:"jill", text:"Right… but you don't really know my situation yet.", audio:null},
-          coach:"This is where consultants lose warm leads: offering the solution before understanding the need. Stay in discovery a little longer." }
+          coach:"This is how warm leads go cold: solution before need. Stay in discovery a little longer." }
       ]},
     { key:"future",
       note:"You understand her present. Now open the future — where she wants English to take her.",
@@ -318,7 +333,7 @@ const SCENARIO = {
           coach:"An open future question let the real goal surface. This is far bigger than \u2018pass an exam\u2019." },
         { text:"\u201cSo you just want to pass your exam, right?\u201d", correct:false, delta:-8,
           reaction:{who:"jill", text:"Well… yes, but there's more to it than that.", audio:null},
-          coach:"A closed question boxes her in and hides the real goal. Open the future so the dream can come out." }
+          coach:"A closed question boxes her in — open the future so the real dream can come out." }
       ]},
     { key:"talk",
       note:"She has shared a big dream. Stay human for a moment before you dig deeper.",
@@ -329,7 +344,7 @@ const SCENARIO = {
           coach:"One more human question — and the door to the Hot Button opens. Notice what she just admitted." },
         { text:"\u201cGreat. Let's look at which course would fit you best.\u201d", correct:false, delta:-10,
           reaction:{who:"jill", text:"Oh — okay. I thought we were still talking about my goals.", audio:null},
-          coach:"You almost had it. Rushing to the course here skips the most valuable moment. One more human question usually reveals the Hot Button." }
+          coach:"Rushing to the course here skips the most valuable moment — one more human question reveals the Hot Button." }
       ]},
     { key:"hotbutton",
       note:"She has just shown you a feeling: after failing twice, she doubts herself. This is the Hot Button.",
@@ -340,10 +355,10 @@ const SCENARIO = {
           coach:"You reflected the feeling first, then asked. That's the Hot Button — the emotional reason she will commit." },
         { text:"\u201cOkay, so what you need is a higher test score.\u201d", correct:false, delta:-10,
           reaction:{who:"jill", text:"I mean… yes. But it's not really about the score.", audio:null},
-          coach:"You named the rational need, but the Hot Button is emotional. Reflect the feeling before the fact." },
+          coach:"That's the rational need, but the Hot Button is emotional — reflect the feeling first." },
         { text:"\u201cLet's not dwell on that. Let me show you our programme.\u201d", correct:false, delta:-16,
           reaction:{who:"jill", text:"…Sure. I guess.", audio:null},
-          coach:"Skipping the Hot Button is the most common way a warm lead goes cold. This feeling is exactly why she would say yes. Don't step over it." }
+          coach:"Skipping the Hot Button is the #1 way a warm lead goes cold — this feeling is why she'll say yes." }
       ]},
     { key:"frame",
       note:"You have everything you need. Before any solution, frame back what you heard.",
@@ -351,10 +366,10 @@ const SCENARIO = {
       options:[
         { text:"\u201cSo let me check I've understood. You want to study in the US, your reading is solid, speaking is where you want to grow, and getting there would prove to yourself what you're capable of. Have I got that right?\u201d", correct:true, delta:+10,
           reaction:{who:"jill", text:"Yes. Exactly. That's it — you really listened.", audio:null},
-          coach:"Framing back what you heard, in her words, is what earns the right to present a solution next." },
+          coach:"Framing back what you heard earns the right to present a solution next." },
         { text:"\u201cPerfect. Here's our twelve-month course and the price.\u201d", correct:false, delta:-12,
           reaction:{who:"jill", text:"Oh — that's a lot, all at once. I'm not sure.", audio:null},
-          coach:"Frame before you present. Confirming what you heard is the bridge between discovery and the solution. Jumping to the price loses it." }
+          coach:"Frame before you present — confirming what you heard bridges discovery to the solution." }
       ]}
   ]
 };
@@ -368,7 +383,6 @@ const SCENARIO = {
   const bJill = $("bubbleJill"), bYou = $("bubbleYou");
 
   let phaseIndex = 0, warmth = SCENARIO.startWarmth, resolved = false;
-  const transcript = [];   // committed (correct-path) lines for the recap
 
   $("eyebrow").textContent = UI.eyebrow;
   $("title").textContent = UI.title;
@@ -453,7 +467,7 @@ const SCENARIO = {
 
     warmth += (opt.delta||0); renderWarmth();
 
-    Array.from(list.children).forEach(c=>c.disabled=true);
+    Array.from(list.children).forEach(c=>{ c.disabled=true; if(c!==button) c.classList.add("other-hidden"); });
     button.classList.add(opt.correct?"picked-good":"picked-bad");
 
     const v=document.createElement("div"); v.className="verdict "+(opt.correct?"good":"bad");
@@ -463,10 +477,6 @@ const SCENARIO = {
     const actions=document.createElement("div"); actions.className="actions";
     if(opt.correct){
       resolved=true;
-      // record the committed exchange for the recap
-      if(ph.lead) transcript.push({who:"jill", phase:ph.key, text:ph.lead.text});
-      transcript.push({who:"you", phase:ph.key, text:opt.text.replace(/^\u201c|\u201d$/g,"")});
-      transcript.push({who:"jill", phase:ph.key, text:opt.reaction.text});
       const n=document.createElement("button"); n.className="btn"; n.textContent=UI.continueBtn;
       n.addEventListener("click",advance); actions.appendChild(n);
     }else{
@@ -476,7 +486,7 @@ const SCENARIO = {
         warmth -= (opt.delta||0); renderWarmth();
         setBubble("you",null);
         setBubble("jill", ph.lead?ph.lead.text:null);   // restore the opening bubble
-        Array.from(list.children).forEach(c=>{ c.disabled=false; c.classList.remove("picked-good","picked-bad"); });
+        Array.from(list.children).forEach(c=>{ c.disabled=false; c.classList.remove("picked-good","picked-bad","other-hidden"); });
       });
       actions.appendChild(r);
     }
@@ -493,10 +503,11 @@ const SCENARIO = {
     phaseIndex=SCENARIO.phases.length; renderRail();
     warmth=Math.max(warmth,80); renderWarmth();
     clearBubbles(); $("sceneNote").textContent="";
+    document.querySelector(".stage").classList.add("finished");
 
-    let recap='<div class="recap"><h3>'+UI.recapTitle+'</h3>'+
-      transcript.map(l=>'<div class="line '+l.who+'"><span class="w">'+(l.who==="you"?"You":UI.jillLabel)+'</span><span>'+l.text+'</span></div>').join('')+
-      '</div>';
+    let recap='<div class="recap"><h3>'+UI.recapTitle+'</h3><ul>'+
+      UI.recapBullets.map(b=>'<li>'+b+'</li>').join('')+
+      '</ul></div>';
 
     interaction.innerHTML=
       '<div class="final">'+

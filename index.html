@@ -40,6 +40,9 @@
     --navy:#0B2A4A; --accent:#D6231C; --warm:#2E7D5B;
     --warm-soft:#E3F0EA; --cool:#C0453E; --cool-soft:#FBEAE9;
     --you:#0B2A4A; --jill:#8A3A2E;
+    /* fullscreen affordance — its own token, not --warm, which carries the
+       warmth-meter meaning and would drift if that palette were retuned */
+    --fs-green:#127A47; --fs-green-deep:#0D5F37;
     --shadow:0 1px 2px rgba(19,38,59,.06),0 8px 24px rgba(19,38,59,.08);
     --radius:14px;
   }
@@ -210,6 +213,10 @@
 
   @media (max-width:560px){
     .stage{width:100vw;height:100vh;border-radius:0}
+    /* the centred button would otherwise sit on top of the eyebrow and the
+       language select; give it a band of its own and trim it to clear them */
+    .topbar{padding-top:50px}
+    .fs-btn{height:30px;padding:0 12px;font-size:.72rem;gap:6px}
     .scene{height:160px}
     .title{font-size:1.25rem}
     .step{font-size:0;min-width:0}
@@ -221,20 +228,30 @@
   }
   @media (prefers-reduced-motion:reduce){*{animation:none !important;transition:none !important}}
 
-  /* Fullscreen button — Do-section ghost vocabulary, absolutely positioned so
-     it costs no vertical height inside the fixed stage. */
-  .fs-btn{position:absolute;top:12px;inset-inline-end:16px;display:inline-flex;align-items:center;gap:6px;
-    height:28px;padding:0 10px;background:transparent;color:var(--navy);
-    border:1.5px solid var(--line);border-radius:10px;
-    font:inherit;font-size:.72rem;font-weight:700;letter-spacing:.02em;
-    white-space:nowrap;cursor:pointer;transition:background .15s}
-  .fs-btn:hover{background:#EDF3F8}
+  /* Fullscreen button — centred at the top of the stage and deliberately loud.
+     In an LMS iframe the lower half of the activity often sits below the fold,
+     and a learner who never finds this button never sees that half. Solid green
+     rather than the Do-section ghost vocabulary, so it reads as the one control
+     that is chrome rather than part of the role-play. Still absolutely
+     positioned, so it costs no vertical height inside the fixed stage. */
+  .fs-btn{position:absolute;top:10px;left:50%;transform:translateX(-50%);z-index:30;
+    display:inline-flex;align-items:center;gap:8px;
+    height:34px;padding:0 16px;background:var(--fs-green);color:#fff;
+    border:0;border-radius:999px;
+    font:inherit;font-size:.78rem;font-weight:800;letter-spacing:.02em;
+    white-space:nowrap;cursor:pointer;
+    box-shadow:0 2px 10px rgba(18,122,71,.35);
+    transition:background .15s,box-shadow .15s}
+  .fs-btn:hover{background:var(--fs-green-deep);box-shadow:0 4px 14px rgba(18,122,71,.45)}
   .fs-btn:focus-visible{outline:3px solid #A9C7E8;outline-offset:2px}
-  .fs-btn.is-on{background:var(--navy);color:#fff;border-color:var(--navy)}
+  /* while fullscreen the button has done its job — drop it back to navy so it
+     stops competing with the activity for attention */
+  .fs-btn.is-on{background:var(--navy);box-shadow:none}
 
-  /* language switcher — header, beside the fullscreen button. ?lang= stays the
-     primary mechanism for LMS embeds. */
-  .langbar{position:absolute;top:12px;inset-inline-end:150px}
+  /* language switcher — header, top-right, in the row the fullscreen button
+     vacated when it moved to centre. ?lang= stays the primary mechanism for
+     LMS embeds. */
+  .langbar{position:absolute;top:12px;inset-inline-end:16px}
   .langbar select{font:inherit;font-size:.72rem;font-weight:700;color:var(--navy);
     background:transparent;border:1.5px solid var(--line);border-radius:10px;
     padding:5px 8px;cursor:pointer}
@@ -255,7 +272,7 @@
   <header class="topbar">
     <p class="eyebrow" id="eyebrow"></p>
     <h1 class="title" id="title"></h1>
-    <button class="fs-btn" id="fsBtn" type="button" aria-pressed="false"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3H3v5M16 3h5v5M8 21H3v-5M16 21h5v-5"/></svg><span class="fs-label" aria-live="polite"></span></button>
+    <button class="fs-btn" id="fsBtn" type="button" aria-pressed="false"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3H3v5M16 3h5v5M8 21H3v-5M16 21h5v-5"/></svg><span class="fs-label" aria-live="polite"></span></button>
     <div class="langbar"><select id="langsel" aria-label="Language"></select></div>
     <div class="rail" id="rail" aria-label="Conversation phases"></div>
     <div class="warmth" id="warmthWrap">
@@ -315,7 +332,7 @@ const I18N = {
 /* ---------------------------------------------------------------- English */
 en:{
   lang:"en",
-  fs:{ enter:"Fullscreen", exit:"Exit fullscreen", newtab:"Open in a new tab", hint:"Press F11 to fill your screen" },
+  fs:{ enter:"Fullscreen", exit:"Exit fullscreen", hint:"Press F11 to fill your screen" },
   eyebrow:"Do · Practice", title:"Jill's Needs Analysis",
   warmthName:"Jill's warmth",
   warmthStates:{high:"Open and relaxed",mid:"Warming up",low:"Pulling back",cold:"Guarded"},
@@ -408,7 +425,7 @@ en:{
 /* ---------------------------------------------------------------- Italiano */
 it:{
   lang:"it",
-  fs:{ enter:"Schermo intero", exit:"Esci da schermo intero", newtab:"Apri in una nuova scheda", hint:"Premi F11 per riempire lo schermo" },
+  fs:{ enter:"Schermo intero", exit:"Esci da schermo intero", hint:"Premi F11 per riempire lo schermo" },
   eyebrow:"Pratica · Do", title:"L'analisi dei bisogni di Jill",
   warmthName:"Apertura di Jill",
   warmthStates:{high:"Aperta e rilassata",mid:"Si sta aprendo",low:"Si sta chiudendo",cold:"Sulla difensiva"},
@@ -501,7 +518,7 @@ it:{
 /* -------------------------------------------------------------- Português */
 pt:{
   lang:"pt",
-  fs:{ enter:"Ecrã inteiro", exit:"Sair do ecrã inteiro", newtab:"Abrir num novo separador", hint:"Prima F11 para preencher o ecrã" },
+  fs:{ enter:"Ecrã inteiro", exit:"Sair do ecrã inteiro", hint:"Prima F11 para preencher o ecrã" },
   eyebrow:"Prática · Do", title:"A análise de necessidades da Jill",
   warmthName:"Abertura da Jill",
   warmthStates:{high:"Aberta e descontraída",mid:"A aquecer",low:"A recuar",cold:"Na defensiva"},
@@ -593,7 +610,7 @@ pt:{
 /* ---------------------------------------------------------------- Español */
 es:{
   lang:"es",
-  fs:{ enter:"Pantalla completa", exit:"Salir de pantalla completa", newtab:"Abrir en una pestaña nueva", hint:"Pulsa F11 para ocupar toda la pantalla" },
+  fs:{ enter:"Pantalla completa", exit:"Salir de pantalla completa", hint:"Pulsa F11 para ocupar toda la pantalla" },
   eyebrow:"Práctica · Do", title:"El análisis de necesidades de Jill",
   warmthName:"Apertura de Jill",
   warmthStates:{high:"Abierta y relajada",mid:"Entrando en confianza",low:"Se está cerrando",cold:"A la defensiva"},
@@ -686,7 +703,7 @@ es:{
 /* --------------------------------------------------------------- Français */
 fr:{
   lang:"fr",
-  fs:{ enter:"Plein écran", exit:"Quitter le plein écran", newtab:"Ouvrir dans un nouvel onglet", hint:"Appuyez sur F11 pour remplir l'écran" },
+  fs:{ enter:"Plein écran", exit:"Quitter le plein écran", hint:"Appuyez sur F11 pour remplir l'écran" },
   eyebrow:"Pratique · Do", title:"L'analyse des besoins de Jill",
   warmthName:"Ouverture de Jill",
   warmthStates:{high:"Ouverte et détendue",mid:"Se détend",low:"Se referme",cold:"Sur la réserve"},
@@ -779,7 +796,7 @@ fr:{
 /* ----------------------------------------------------------------- العربية */
 ar:{
   lang:"ar",
-  fs:{ enter:"ملء الشاشة", exit:"إنهاء ملء الشاشة", newtab:"فتح في تبويب جديد", hint:"اضغط F11 لملء الشاشة" },
+  fs:{ enter:"ملء الشاشة", exit:"إنهاء ملء الشاشة", hint:"اضغط F11 لملء الشاشة" },
   eyebrow:"تدريب · Do", title:"تحليل احتياجات جيل",
   warmthName:"انفتاح جيل",
   warmthStates:{high:"منفتحة ومرتاحة",mid:"بدأت تنفتح",low:"بدأت تنسحب",cold:"متحفّظة"},
@@ -1064,10 +1081,12 @@ const SCENARIO={
      the lower half of the activity below the fold, where nothing inside the
      iframe can detect it. This is the escape hatch.
 
-     It degrades fullscreen -> new tab -> hint, because an LMS may rewrite or
-     strip allowfullscreen on the iframe tag. Ported from SANDBOXTEMPLATE; the
-     toast and i18n lookups it relied on do not exist here, so the labels come
-     from the activity's own copy object and the hint borrows the button label. */
+     Our LMS embed grants allowfullscreen, so this is a real Fullscreen API
+     call, never a new tab: popping out to a tab loses the learner's place in
+     the course and orphans them outside the player. The only fallback left is
+     an inline F11 hint for the case where the request is refused anyway.
+     Ported from SANDBOXTEMPLATE; the toast and i18n lookups it relied on do
+     not exist here, so the labels come from the activity's own copy object. */
   const FS = UI.fs;
   const FS_W = 920, FS_H = 640;
   const fsBtn = document.getElementById("fsBtn");
@@ -1075,21 +1094,16 @@ const SCENARIO={
   const fsEl = () => document.fullscreenElement || document.webkitFullscreenElement || null;
   // false when the embedding iframe carries no allowfullscreen
   const fsSupported = !!(document.fullscreenEnabled || document.webkitFullscreenEnabled);
-  // about:srcdoc, blob: and data: cannot be reopened as a top-level document
-  const fsCanPopOut = /^https?:$/.test(location.protocol);
-  let fsMode = fsSupported ? "fullscreen" : (fsCanPopOut ? "popout" : "hint");
+  let fsMode = fsSupported ? "fullscreen" : "hint";
   let fsHintTimer;
 
   function syncFsLabel(){
     if(!fsBtn) return;
     const on = !!fsEl();
-    const t = fsMode === "popout" ? FS.newtab : on ? FS.exit : FS.enter;
+    const t = on ? FS.exit : FS.enter;
     fsLabelEl.textContent = t; fsBtn.title = t;
     fsBtn.classList.toggle("is-on", on);
-    // aria-pressed describes a toggle; in popout mode this is a one-way action,
-    // so drop the attribute rather than lie with "false"
-    if(fsMode === "popout") fsBtn.removeAttribute("aria-pressed");
-    else fsBtn.setAttribute("aria-pressed", on ? "true" : "false");
+    fsBtn.setAttribute("aria-pressed", on ? "true" : "false");
   }
   // there is no toast component in these activities, so the hint borrows the
   // button's own label for a few seconds
@@ -1098,7 +1112,7 @@ const SCENARIO={
     fsLabelEl.textContent = FS.hint; fsBtn.title = FS.hint;
     clearTimeout(fsHintTimer); fsHintTimer = setTimeout(syncFsLabel, 4000);
   }
-  function fsDemote(){ fsMode = fsCanPopOut ? "popout" : "hint"; syncFsLabel(); fsHint(); }
+  function fsDemote(){ fsMode = "hint"; syncFsLabel(); fsHint(); }
 
   /* Scale the stage rather than stretch it. This is a fixed 920xH design, so
      plain fullscreen on a large monitor would just centre a postage stamp in a
@@ -1111,11 +1125,6 @@ const SCENARIO={
 
   function toggleFullscreen(){
     if(fsMode === "hint"){ fsHint(); return; }
-    if(fsMode === "popout"){
-      // returns null when the iframe is sandboxed without allow-popups
-      if(!window.open(location.href, "_blank", "noopener")){ fsMode = "hint"; fsDemote(); }
-      return;
-    }
     if(fsEl()){ (document.exitFullscreen || document.webkitExitFullscreen).call(document); return; }
     /* documentElement, NOT .stage: element fullscreen forces width/height:100%
        over the fixed design and paints an opaque black ::backdrop, which would

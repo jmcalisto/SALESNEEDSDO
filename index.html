@@ -31,7 +31,7 @@
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Arabic:wght@400;600;700&family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 
 <style>
   :root{
@@ -61,6 +61,9 @@
     border-radius:20px;
     box-shadow:0 1px 2px rgba(19,38,59,.06),0 20px 48px rgba(19,38,59,.14);
     background:var(--card);
+    /* consumed by fitStage(): scale the fixed-size window up in fullscreen
+       rather than stranding it as a postage stamp on a large monitor */
+    transform:scale(var(--fs-scale,1));transform-origin:center center;
   }
   /* once the role-play is finished, the scene and rail/warmth give way
      entirely to the panel so the wrap-up has the full window to work with */
@@ -217,6 +220,34 @@
     .scene-note{font-size:.66rem;bottom:6px}
   }
   @media (prefers-reduced-motion:reduce){*{animation:none !important;transition:none !important}}
+
+  /* Fullscreen button — Do-section ghost vocabulary, absolutely positioned so
+     it costs no vertical height inside the fixed stage. */
+  .fs-btn{position:absolute;top:12px;inset-inline-end:16px;display:inline-flex;align-items:center;gap:6px;
+    height:28px;padding:0 10px;background:transparent;color:var(--navy);
+    border:1.5px solid var(--line);border-radius:10px;
+    font:inherit;font-size:.72rem;font-weight:700;letter-spacing:.02em;
+    white-space:nowrap;cursor:pointer;transition:background .15s}
+  .fs-btn:hover{background:#EDF3F8}
+  .fs-btn:focus-visible{outline:3px solid #A9C7E8;outline-offset:2px}
+  .fs-btn.is-on{background:var(--navy);color:#fff;border-color:var(--navy)}
+
+  /* language switcher — header, beside the fullscreen button. ?lang= stays the
+     primary mechanism for LMS embeds. */
+  .langbar{position:absolute;top:12px;inset-inline-end:150px}
+  .langbar select{font:inherit;font-size:.72rem;font-weight:700;color:var(--navy);
+    background:transparent;border:1.5px solid var(--line);border-radius:10px;
+    padding:5px 8px;cursor:pointer}
+  .langbar select:focus-visible{outline:3px solid #A9C7E8;outline-offset:2px}
+
+  /* ---------- right-to-left (Arabic) ----------
+     Reading-order chrome flips on its own. The speech bubbles do not: Jill is
+     on the left of frame and You on the right, so they stay with the people in
+     the photo rather than swapping sides. */
+  [dir="rtl"] body{font-family:'Noto Sans Arabic','Segoe UI',Tahoma,system-ui,sans-serif}
+  [dir="rtl"] .title,[dir="rtl"] .final h2,[dir="rtl"] .code-box .code{
+    font-family:'Noto Sans Arabic','Segoe UI',Tahoma,system-ui,sans-serif;font-weight:700}
+  [dir="rtl"] .eyebrow{letter-spacing:0}
 </style>
 </head>
 <body>
@@ -224,6 +255,8 @@
   <header class="topbar">
     <p class="eyebrow" id="eyebrow"></p>
     <h1 class="title" id="title"></h1>
+    <button class="fs-btn" id="fsBtn" type="button" aria-pressed="false"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3H3v5M16 3h5v5M8 21H3v-5M16 21h5v-5"/></svg><span class="fs-label" aria-live="polite"></span></button>
+    <div class="langbar"><select id="langsel" aria-label="Language"></select></div>
     <div class="rail" id="rail" aria-label="Conversation phases"></div>
     <div class="warmth" id="warmthWrap">
       <div class="warmth-avatar" id="warmthAvatar">J</div>
@@ -248,19 +281,49 @@
 /* =====================================================================
    1. UI — interface labels (translate these)
    ===================================================================== */
-const UI = {
+/* =========================================================================
+   I18N — every language lives in this one file.
+
+   Structure is declared ONCE in SHAPE: the phase keys, which option is
+   correct, what each option does to the warmth score, and which phase has an
+   opening line from Jill. Only text is per-language, in phases_text[]:
+     note / question
+     lead       — Jill's opening line, phase 0 only
+     opts[]     — the choice buttons
+     reactions[] — Jill's reply to each, same order
+     coaches[]  — the verdict text for each, same order
+   Keeping the scoring out of the translations is what stops the correct
+   answer ending up in a different slot in one language only.
+
+   Language comes from ?lang=xx, then the browser, then English:
+       .../discovery_roleplay.html?lang=fr
+   ========================================================================= */
+
+const SHAPE = [
+  {key:"ice",       lead:true, correct:0, delta:[ 10,-12, -6]},
+  {key:"past",                 correct:0, delta:[  8, -6]},
+  {key:"present",              correct:0, delta:[  8,-12]},
+  {key:"future",               correct:0, delta:[ 10, -8]},
+  {key:"talk",                 correct:0, delta:[  8,-10]},
+  {key:"hotbutton",            correct:0, delta:[ 14,-10,-16]},
+  {key:"frame",                correct:0, delta:[ 10,-12]}
+];
+const START_WARMTH = 55;
+
+const I18N = {
+
+/* ---------------------------------------------------------------- English */
+en:{
   lang:"en",
-  eyebrow:"Do · Practice",
-  title:"Jill's Needs Analysis",
+  fs:{ enter:"Fullscreen", exit:"Exit fullscreen", newtab:"Open in a new tab", hint:"Press F11 to fill your screen" },
+  eyebrow:"Do · Practice", title:"Jill's Needs Analysis",
   warmthName:"Jill's warmth",
-  warmthStates:{ high:"Open and relaxed", mid:"Warming up", low:"Pulling back", cold:"Guarded" },
-  continueBtn:"Continue",
-  tryAgainBtn:"Try another response",
+  warmthStates:{high:"Open and relaxed",mid:"Warming up",low:"Pulling back",cold:"Guarded"},
+  continueBtn:"Continue", tryAgainBtn:"Try another response",
   setupHeading:"Before you begin",
   setupTask:"Understand Jill fully before you offer anything — walk all seven phases. No course, plan, or price yet.",
   startBtn:"Start the conversation",
-  youLabel:"You (Consultant)",
-  jillLabel:"Jill",
+  youLabel:"You (Consultant)", jillLabel:"Jill",
   phases:["Ice","Past","Present","Future","Talk","Hot Button","Frame"],
   recapTitle:"What made this work",
   recapBullets:[
@@ -269,109 +332,583 @@ const UI = {
     "The Hot Button: failing twice made her doubt herself — that's the emotional reason she'll commit.",
     "You framed back what you heard before offering anything."
   ],
-  finalBadge:"✓",
-  finalTitle:"You completed Jill's Needs Analysis",
+  finalBadge:"✓", finalTitle:"You completed Jill's Needs Analysis",
   finalBody:"You walked all seven phases without pushing a solution too soon. This was discovery only — the solution comes next, once you've earned the right to it.",
-  codeLabel:"Your completion code",
-  code:"DISCOVERY-8020",
-  finalFoot:"Enter this code on the next screen to record that you finished the role-play."
+  codeLabel:"Your completion code", code:"DISCOVERY-8020",
+  finalFoot:"Enter this code on the next screen to record that you finished the role-play.",
+  personaName:"Jill",
+  personaIntro:"Jill, 23, has failed two English entrance exams and dreams of studying in the US. Friendly but discouraged. You're her consultant — this is her first appointment.",
+  phases_text:[
+   {note:"Jill has just sat down. This is the very start of the appointment.",
+    lead:"Hi… yes, I'm Jill. Sorry, I'm a little nervous.",
+    question:"How do you open?",
+    opts:["“Hi Jill, it's really nice to meet you. Thank you for coming in today. How was your journey over?”",
+          "“Great, you're here for English classes. Let me show you what we offer.”",
+          "“You want to improve your English, correct?”"],
+    reactions:["Oh, thank you. It was fine, actually. I'm feeling a bit better already.",
+               "Oh… okay. I haven't really said what I'm looking for yet.",
+               "Um, yes… I suppose so."],
+    coaches:["A warm, easy opening lets Jill relax — that's how trust starts.",
+             "That's product before person. Earn the right to present later — start with warmth.",
+             "A closed question makes a cold start — open like a real welcome, not a form."]},
+   {note:"Jill is settled. Now you want to understand her story with English.",
+    question:"You want to learn about her past with English. What do you ask?",
+    opts:["“Can you tell me a little about your experience with English so far?”",
+          "“Did you study English at school? For how many years?”"],
+    reactions:["I studied it at school and at university. But I've failed the entrance exam twice now. I always get stuck when I have to speak.",
+               "Yes. About ten years, I think."],
+    coaches:["An open question let Jill tell her own story — and she just shared something important.",
+             "Closed questions get short answers — you learned a number, not her story. Remember, the prospect should be doing 80% of the talking."]},
+   {note:"You know a little of her past. Now the present — where English sits in her life today.",
+    question:"How do you explore her present situation?",
+    opts:["“And right now, where do you notice English matters most in your daily life?”",
+          "“Don't worry — our method fixes speaking problems quickly.”"],
+    reactions:["Mostly at university. My reading is okay, honestly. But speaking in seminars really scares me.",
+               "Right… but you don't really know my situation yet."],
+    coaches:["Now you know the real difficulty: speaking, not reading. That's discovery working.",
+             "This is how warm leads go cold: solution before need. Stay in discovery a little longer."]},
+   {note:"You understand her present. Now open the future — where she wants English to take her.",
+    question:"How do you open up her future?",
+    opts:["“Where would you like your English to take you? What's the dream?”",
+          "“So you just want to pass your exam, right?”"],
+    reactions:["Honestly? I want to study at a university in the United States. That's the real dream.",
+               "Well… yes, but there's more to it than that."],
+    coaches:["An open future question let the real goal surface. This is far bigger than ‘pass an exam’.",
+             "A closed question boxes her in — open the future so the real dream can come out."]},
+   {note:"She has shared a big dream. Stay human for a moment before you dig deeper.",
+    question:"She has just named a big goal. What do you do?",
+    opts:["“That's a wonderful goal. What is it about studying in the US that excites you most?”",
+          "“Great. Let's look at which course would fit you best.”"],
+    reactions:["My older brother studied there. I've wanted it since I was a kid. But after failing twice… I started to think maybe it's just not for me.",
+               "Oh — okay. I thought we were still talking about my goals."],
+    coaches:["One more human question — and the door to the Hot Button opens. Notice what she just admitted.",
+             "Rushing to the course here skips the most valuable moment — one more human question reveals the Hot Button."]},
+   {note:"She has just shown you a feeling: after failing twice, she doubts herself. This is the Hot Button.",
+    question:"This is the emotional heart of the conversation. How do you respond?",
+    opts:["“It sounds like this really matters to you, and those two exams knocked your confidence. What would it mean to you to finally get there?”",
+          "“Okay, so what you need is a higher test score.”",
+          "“Let's not dwell on that. Let me show you our programme.”"],
+    reactions:["It would mean everything. It would prove to myself that failing twice didn't define me.",
+               "I mean… yes. But it's not really about the score.",
+               "…Sure. I guess."],
+    coaches:["You reflected the feeling first, then asked. That's the Hot Button — the emotional reason she will commit.",
+             "That's the rational need, but the Hot Button is emotional — reflect the feeling first.",
+             "Skipping the Hot Button is the #1 way a warm lead goes cold — this feeling is why she'll say yes."]},
+   {note:"You have everything you need. Before any solution, frame back what you heard.",
+    question:"How do you close the Needs Analysis?",
+    opts:["“So let me check I've understood. You want to study in the US, your reading is solid, speaking is where you want to grow, and getting there would prove to yourself what you're capable of. Have I got that right?”",
+          "“Perfect. Here's our twelve-month course and the price.”"],
+    reactions:["Yes. Exactly. That's it — you really listened.",
+               "Oh — that's a lot, all at once. I'm not sure."],
+    coaches:["Framing back what you heard earns the right to present a solution next.",
+             "Frame before you present — confirming what you heard bridges discovery to the solution."]}
+  ]
+},
+
+/* ---------------------------------------------------------------- Italiano */
+it:{
+  lang:"it",
+  fs:{ enter:"Schermo intero", exit:"Esci da schermo intero", newtab:"Apri in una nuova scheda", hint:"Premi F11 per riempire lo schermo" },
+  eyebrow:"Pratica · Do", title:"L'analisi dei bisogni di Jill",
+  warmthName:"Apertura di Jill",
+  warmthStates:{high:"Aperta e rilassata",mid:"Si sta aprendo",low:"Si sta chiudendo",cold:"Sulla difensiva"},
+  continueBtn:"Continua", tryAgainBtn:"Prova un'altra risposta",
+  setupHeading:"Prima di iniziare",
+  setupTask:"Capisci Jill fino in fondo prima di proporle qualcosa — attraversa tutte e sette le fasi. Ancora nessun corso, piano o prezzo.",
+  startBtn:"Inizia la conversazione",
+  youLabel:"Tu (Consulente)", jillLabel:"Jill",
+  phases:["Ghiaccio","Passato","Presente","Futuro","Dialogo","Hot Button","Inquadrare"],
+  recapTitle:"Perché ha funzionato",
+  recapBullets:[
+    "Un'apertura calorosa e umana — prima di qualsiasi domanda vera.",
+    "Le domande aperte hanno fatto emergere la storia vera: la difficoltà è parlare, non leggere.",
+    "Il Hot Button: aver fallito due volte l'ha fatta dubitare di sé — è la ragione emotiva per cui deciderà.",
+    "Hai riformulato quello che avevi ascoltato prima di proporre qualsiasi cosa."
+  ],
+  finalBadge:"✓", finalTitle:"Hai completato l'analisi dei bisogni di Jill",
+  finalBody:"Hai attraversato tutte e sette le fasi senza proporre una soluzione troppo presto. Questa era solo scoperta — la soluzione viene dopo, quando ti sei guadagnato il diritto di presentarla.",
+  codeLabel:"Il tuo codice di completamento", code:"DISCOVERY-8020",
+  finalFoot:"Inserisci questo codice nella schermata successiva per registrare che hai completato il role-play.",
+  personaName:"Jill",
+  personaIntro:"Jill, 23 anni, ha fallito due esami di ammissione di inglese e sogna di studiare negli Stati Uniti. Cordiale ma scoraggiata. Tu sei il suo consulente — questo è il suo primo appuntamento.",
+  phases_text:[
+   {note:"Jill si è appena seduta. È l'inizio vero e proprio dell'appuntamento.",
+    lead:"Salve… sì, sono Jill. Scusi, sono un po' nervosa.",
+    question:"Come apri?",
+    opts:["«Salve Jill, è un vero piacere conoscerla. Grazie per essere venuta oggi. Com'è andato il viaggio?»",
+          "«Bene, è qui per i corsi di inglese. Le mostro che cosa offriamo.»",
+          "«Vuole migliorare il suo inglese, giusto?»"],
+    reactions:["Oh, grazie. È andato bene, in realtà. Mi sento già un po' meglio.",
+               "Oh… va bene. Non ho ancora detto che cosa sto cercando.",
+               "Ehm, sì… immagino di sì."],
+    coaches:["Un'apertura calorosa e semplice permette a Jill di rilassarsi — è così che nasce la fiducia.",
+             "Così metti il prodotto prima della persona. Il diritto di presentare si guadagna dopo — inizia con il calore umano.",
+             "Una domanda chiusa rende l'inizio freddo — apri come una vera accoglienza, non come un modulo."]},
+   {note:"Jill si è sistemata. Ora vuoi capire la sua storia con l'inglese.",
+    question:"Vuoi conoscere il suo passato con l'inglese. Che cosa chiedi?",
+    opts:["«Può raccontarmi un po' della sua esperienza con l'inglese finora?»",
+          "«Ha studiato inglese a scuola? Per quanti anni?»"],
+    reactions:["L'ho studiato a scuola e all'università. Ma ho già fallito due volte l'esame di ammissione. Mi blocco sempre quando devo parlare.",
+               "Sì. Circa dieci anni, credo."],
+    coaches:["Una domanda aperta ha permesso a Jill di raccontare la sua storia — e ha appena condiviso qualcosa di importante.",
+             "Le domande chiuse ottengono risposte brevi — hai ottenuto un numero, non la sua storia. Ricorda: deve parlare il prospect per l'80% del tempo."]},
+   {note:"Conosci un po' del suo passato. Ora il presente — che ruolo ha l'inglese nella sua vita oggi.",
+    question:"Come esplori la sua situazione attuale?",
+    opts:["«E adesso, dove nota che l'inglese conta di più nella sua vita quotidiana?»",
+          "«Non si preoccupi — il nostro metodo risolve in fretta i problemi di conversazione.»"],
+    reactions:["Soprattutto all'università. La lettura va abbastanza bene, sinceramente. Ma parlare nei seminari mi spaventa davvero.",
+               "Certo… ma non conosce ancora la mia situazione."],
+    coaches:["Ora conosci la vera difficoltà: parlare, non leggere. È così che funziona la scoperta.",
+             "È così che un contatto caldo diventa freddo: soluzione prima del bisogno. Resta ancora un po' nella fase di scoperta."]},
+   {note:"Hai capito il suo presente. Ora apri il futuro — dove vuole che l'inglese la porti.",
+    question:"Come apri il suo futuro?",
+    opts:["«Dove le piacerebbe che l'inglese la portasse? Qual è il sogno?»",
+          "«Quindi vuole solo superare l'esame, giusto?»"],
+    reactions:["Sinceramente? Voglio studiare in un'università negli Stati Uniti. Quello è il vero sogno.",
+               "Beh… sì, ma c'è dell'altro."],
+    coaches:["Una domanda aperta sul futuro ha fatto emergere l'obiettivo vero. È molto più grande di «superare un esame».",
+             "Una domanda chiusa la chiude in un angolo — apri il futuro perché il vero sogno possa emergere."]},
+   {note:"Ha condiviso un grande sogno. Resta sul piano umano un momento prima di scavare più a fondo.",
+    question:"Ha appena nominato un grande obiettivo. Che cosa fai?",
+    opts:["«È un obiettivo bellissimo. Che cosa la entusiasma di più dell'idea di studiare negli Stati Uniti?»",
+          "«Ottimo. Vediamo quale corso le andrebbe meglio.»"],
+    reactions:["Mio fratello maggiore ha studiato lì. Lo desidero da quando ero bambina. Ma dopo aver fallito due volte… ho cominciato a pensare che forse non fa per me.",
+               "Oh — va bene. Pensavo stessimo ancora parlando dei miei obiettivi."],
+    coaches:["Un'altra domanda umana — e la porta del Hot Button si apre. Nota che cosa ha appena ammesso.",
+             "Correre al corso qui salta il momento più prezioso — un'altra domanda umana rivela il Hot Button."]},
+   {note:"Ti ha appena mostrato un'emozione: dopo due fallimenti, dubita di sé. Questo è il Hot Button.",
+    question:"Questo è il cuore emotivo della conversazione. Come rispondi?",
+    opts:["«Sembra che questo conti davvero molto per lei, e quei due esami le hanno tolto sicurezza. Che cosa significherebbe per lei riuscirci finalmente?»",
+          "«Va bene, quindi quello che le serve è un punteggio più alto.»",
+          "«Non soffermiamoci su questo. Le mostro il nostro programma.»"],
+    reactions:["Significherebbe tutto. Dimostrerebbe a me stessa che aver fallito due volte non mi definisce.",
+               "Cioè… sì. Ma non è davvero una questione di punteggio.",
+               "…Va bene. Immagino."],
+    coaches:["Hai prima rispecchiato l'emozione e poi hai chiesto. Questo è il Hot Button — la ragione emotiva per cui deciderà.",
+             "Quello è il bisogno razionale, ma il Hot Button è emotivo — rispecchia prima l'emozione.",
+             "Saltare il Hot Button è il modo numero uno per far raffreddare un contatto caldo — è questa emozione la ragione del suo sì."]},
+   {note:"Hai tutto quello che ti serve. Prima di qualsiasi soluzione, riformula ciò che hai ascoltato.",
+    question:"Come chiudi l'analisi dei bisogni?",
+    opts:["«Allora, verifico di aver capito bene. Vuole studiare negli Stati Uniti, la lettura è solida, è parlare che vuole migliorare, e arrivarci dimostrerebbe a lei stessa di che cosa è capace. Ho capito bene?»",
+          "«Perfetto. Ecco il nostro corso di dodici mesi e il prezzo.»"],
+    reactions:["Sì. Esatto. È proprio così — lei mi ha davvero ascoltata.",
+               "Oh — è tanto, tutto insieme. Non sono sicura."],
+    coaches:["Riformulare ciò che hai ascoltato ti dà il diritto di presentare una soluzione.",
+             "Riformula prima di presentare — confermare quello che hai sentito collega la scoperta alla soluzione."]}
+  ]
+},
+
+/* -------------------------------------------------------------- Português */
+pt:{
+  lang:"pt",
+  fs:{ enter:"Ecrã inteiro", exit:"Sair do ecrã inteiro", newtab:"Abrir num novo separador", hint:"Prima F11 para preencher o ecrã" },
+  eyebrow:"Prática · Do", title:"A análise de necessidades da Jill",
+  warmthName:"Abertura da Jill",
+  warmthStates:{high:"Aberta e descontraída",mid:"A aquecer",low:"A recuar",cold:"Na defensiva"},
+  continueBtn:"Continuar", tryAgainBtn:"Tentar outra resposta",
+  setupHeading:"Antes de começar",
+  setupTask:"Compreenda a Jill por completo antes de propor seja o que for — percorra as sete fases. Ainda sem curso, plano ou preço.",
+  startBtn:"Começar a conversa",
+  youLabel:"Você (Consultor)", jillLabel:"Jill",
+  phases:["Gelo","Passado","Presente","Futuro","Conversa","Hot Button","Enquadrar"],
+  recapTitle:"O que fez isto funcionar",
+  recapBullets:[
+    "Uma abertura calorosa e humana — antes de qualquer pergunta a sério.",
+    "As perguntas abertas revelaram a história verdadeira: a dificuldade é falar, não ler.",
+    "O Hot Button: chumbar duas vezes fê-la duvidar de si — é a razão emocional pela qual vai decidir.",
+    "Reformulou o que ouviu antes de propor seja o que for."
+  ],
+  finalBadge:"✓", finalTitle:"Concluiu a análise de necessidades da Jill",
+  finalBody:"Percorreu as sete fases sem forçar uma solução cedo demais. Isto foi só descoberta — a solução vem a seguir, quando já ganhou o direito a ela.",
+  codeLabel:"O seu código de conclusão", code:"DISCOVERY-8020",
+  finalFoot:"Introduza este código no ecrã seguinte para registar que terminou o role-play.",
+  personaName:"Jill",
+  personaIntro:"A Jill, de 23 anos, chumbou em dois exames de admissão de inglês e sonha estudar nos Estados Unidos. Simpática mas desanimada. Você é o consultor dela — esta é a primeira reunião.",
+  phases_text:[
+   {note:"A Jill acabou de se sentar. É mesmo o início da reunião.",
+    lead:"Olá… sim, sou a Jill. Desculpe, estou um pouco nervosa.",
+    question:"Como começa?",
+    opts:["“Olá Jill, é muito bom conhecê-la. Obrigado por ter vindo hoje. Como foi a viagem até cá?”",
+          "“Ótimo, veio por causa das aulas de inglês. Vou mostrar-lhe o que oferecemos.”",
+          "“Quer melhorar o seu inglês, correto?”"],
+    reactions:["Ah, obrigada. Correu bem, na verdade. Já me sinto um pouco melhor.",
+               "Ah… está bem. Ainda nem disse o que procuro.",
+               "Hum, sim… suponho que sim."],
+    coaches:["Uma abertura calorosa e fácil deixa a Jill descontrair — é assim que começa a confiança.",
+             "Isso é produto antes da pessoa. O direito de apresentar ganha-se depois — comece pelo calor humano.",
+             "Uma pergunta fechada dá um início frio — abra como um acolhimento a sério, não como um formulário."]},
+   {note:"A Jill está instalada. Agora quer compreender a história dela com o inglês.",
+    question:"Quer conhecer o passado dela com o inglês. O que pergunta?",
+    opts:["“Pode falar-me um pouco da sua experiência com o inglês até agora?”",
+          "“Estudou inglês na escola? Durante quantos anos?”"],
+    reactions:["Estudei na escola e na universidade. Mas já chumbei duas vezes no exame de admissão. Fico sempre bloqueada quando tenho de falar.",
+               "Sim. Uns dez anos, acho eu."],
+    coaches:["Uma pergunta aberta deixou a Jill contar a própria história — e ela acabou de partilhar algo importante.",
+             "Perguntas fechadas dão respostas curtas — ficou com um número, não com a história dela. Lembre-se: o prospeto deve falar 80% do tempo."]},
+   {note:"Já conhece um pouco do passado dela. Agora o presente — que lugar ocupa o inglês na vida dela hoje.",
+    question:"Como explora a situação atual dela?",
+    opts:["“E neste momento, onde nota que o inglês mais conta no seu dia a dia?”",
+          "“Não se preocupe — o nosso método resolve rapidamente os problemas de fala.”"],
+    reactions:["Sobretudo na universidade. A leitura está razoável, sinceramente. Mas falar nos seminários assusta-me mesmo.",
+               "Pois… mas ainda não conhece bem a minha situação."],
+    coaches:["Agora conhece a verdadeira dificuldade: falar, não ler. É a descoberta a funcionar.",
+             "É assim que um contacto quente arrefece: solução antes da necessidade. Fique mais um pouco na descoberta."]},
+   {note:"Compreende o presente dela. Agora abra o futuro — até onde quer que o inglês a leve.",
+    question:"Como abre o futuro dela?",
+    opts:["“Até onde gostaria que o seu inglês a levasse? Qual é o sonho?”",
+          "“Então só quer passar no exame, certo?”"],
+    reactions:["Sinceramente? Quero estudar numa universidade nos Estados Unidos. Esse é o verdadeiro sonho.",
+               "Bem… sim, mas é mais do que isso."],
+    coaches:["Uma pergunta aberta sobre o futuro fez emergir o objetivo verdadeiro. É muito maior do que “passar num exame”.",
+             "Uma pergunta fechada encurrala-a — abra o futuro para que o verdadeiro sonho possa aparecer."]},
+   {note:"Ela partilhou um grande sonho. Fique no plano humano um momento antes de aprofundar.",
+    question:"Ela acabou de nomear um grande objetivo. O que faz?",
+    opts:["“É um objetivo maravilhoso. O que é que mais a entusiasma na ideia de estudar nos Estados Unidos?”",
+          "“Ótimo. Vamos ver qual o curso que melhor lhe serve.”"],
+    reactions:["O meu irmão mais velho estudou lá. Quero isso desde miúda. Mas depois de chumbar duas vezes… comecei a achar que talvez não seja para mim.",
+               "Ah — está bem. Pensava que ainda estávamos a falar dos meus objetivos."],
+    coaches:["Mais uma pergunta humana — e a porta do Hot Button abre-se. Repare no que ela acabou de admitir.",
+             "Correr para o curso aqui salta o momento mais valioso — mais uma pergunta humana revela o Hot Button."]},
+   {note:"Ela acabou de lhe mostrar um sentimento: depois de chumbar duas vezes, duvida de si própria. Este é o Hot Button.",
+    question:"Este é o coração emocional da conversa. Como responde?",
+    opts:["“Parece que isto é mesmo muito importante para si, e esses dois exames abalaram a sua confiança. O que significaria para si conseguir finalmente?”",
+          "“Certo, então o que precisa é de uma nota mais alta.”",
+          "“Não nos vamos alongar nisso. Deixe-me mostrar-lhe o nosso programa.”"],
+    reactions:["Significaria tudo. Provaria a mim própria que chumbar duas vezes não me define.",
+               "Quer dizer… sim. Mas não é bem uma questão de nota.",
+               "…Está bem. Suponho."],
+    coaches:["Refletiu primeiro o sentimento e só depois perguntou. Isso é o Hot Button — a razão emocional pela qual ela vai decidir.",
+             "Essa é a necessidade racional, mas o Hot Button é emocional — reflita primeiro o sentimento.",
+             "Saltar o Hot Button é a forma número um de arrefecer um contacto quente — é este sentimento que a fará dizer sim."]},
+   {note:"Tem tudo o que precisa. Antes de qualquer solução, reformule o que ouviu.",
+    question:"Como fecha a análise de necessidades?",
+    opts:["“Deixe-me confirmar que percebi. Quer estudar nos Estados Unidos, a leitura está sólida, é a falar que quer evoluir, e chegar lá provaria a si própria aquilo de que é capaz. Percebi bem?”",
+          "“Perfeito. Aqui está o nosso curso de doze meses e o preço.”"],
+    reactions:["Sim. Exatamente. É isso — ouviu-me mesmo.",
+               "Ah — é muita coisa, tudo de uma vez. Não sei bem."],
+    coaches:["Reformular o que ouviu dá-lhe o direito de apresentar a seguir uma solução.",
+             "Enquadre antes de apresentar — confirmar o que ouviu liga a descoberta à solução."]}
+  ]
+},
+/* ---------------------------------------------------------------- Español */
+es:{
+  lang:"es",
+  fs:{ enter:"Pantalla completa", exit:"Salir de pantalla completa", newtab:"Abrir en una pestaña nueva", hint:"Pulsa F11 para ocupar toda la pantalla" },
+  eyebrow:"Práctica · Do", title:"El análisis de necesidades de Jill",
+  warmthName:"Apertura de Jill",
+  warmthStates:{high:"Abierta y relajada",mid:"Entrando en confianza",low:"Se está cerrando",cold:"A la defensiva"},
+  continueBtn:"Continuar", tryAgainBtn:"Prueba otra respuesta",
+  setupHeading:"Antes de empezar",
+  setupTask:"Comprende a Jill del todo antes de ofrecerle nada — recorre las siete fases. Todavía sin curso, plan ni precio.",
+  startBtn:"Empezar la conversación",
+  youLabel:"Tú (Consultor)", jillLabel:"Jill",
+  phases:["Hielo","Pasado","Presente","Futuro","Conversación","Hot Button","Encuadre"],
+  recapTitle:"Por qué ha funcionado",
+  recapBullets:[
+    "Una apertura cálida y humana — antes de cualquier pregunta de verdad.",
+    "Las preguntas abiertas destaparon la historia real: la dificultad es hablar, no leer.",
+    "El Hot Button: suspender dos veces la hizo dudar de sí misma — esa es la razón emocional por la que decidirá.",
+    "Le repetiste lo que habías escuchado antes de ofrecer nada."
+  ],
+  finalBadge:"✓", finalTitle:"Has completado el análisis de necesidades de Jill",
+  finalBody:"Has recorrido las siete fases sin empujar una solución demasiado pronto. Esto era solo descubrimiento — la solución viene después, cuando te has ganado el derecho a presentarla.",
+  codeLabel:"Tu código de finalización", code:"DISCOVERY-8020",
+  finalFoot:"Introduce este código en la siguiente pantalla para registrar que has terminado el role-play.",
+  personaName:"Jill",
+  personaIntro:"Jill, 23 años, ha suspendido dos exámenes de acceso de inglés y sueña con estudiar en Estados Unidos. Amable pero desanimada. Tú eres su consultor — esta es su primera cita.",
+  phases_text:[
+   {note:"Jill acaba de sentarse. Es el principio mismo de la cita.",
+    lead:"Hola… sí, soy Jill. Perdona, estoy un poco nerviosa.",
+    question:"¿Cómo abres?",
+    opts:["«Hola Jill, encantado de conocerte. Gracias por venir hoy. ¿Qué tal el viaje hasta aquí?»",
+          "«Genial, vienes por las clases de inglés. Te enseño lo que ofrecemos.»",
+          "«Quieres mejorar tu inglés, ¿verdad?»"],
+    reactions:["Ah, gracias. La verdad es que bien. Ya me siento un poco mejor.",
+               "Ah… vale. Todavía no he dicho qué estoy buscando.",
+               "Eh, sí… supongo que sí."],
+    coaches:["Una apertura cálida y sencilla deja que Jill se relaje — así empieza la confianza.",
+             "Eso es producto antes que persona. El derecho a presentar se gana después — empieza con calidez.",
+             "Una pregunta cerrada hace que el inicio sea frío — abre como una bienvenida de verdad, no como un formulario."]},
+   {note:"Jill ya está cómoda. Ahora quieres entender su historia con el inglés.",
+    question:"Quieres conocer su pasado con el inglés. ¿Qué preguntas?",
+    opts:["«¿Me puedes contar un poco sobre tu experiencia con el inglés hasta ahora?»",
+          "«¿Estudiaste inglés en el colegio? ¿Cuántos años?»"],
+    reactions:["Lo estudié en el colegio y en la universidad. Pero ya he suspendido el examen de acceso dos veces. Siempre me bloqueo cuando tengo que hablar.",
+               "Sí. Unos diez años, creo."],
+    coaches:["Una pregunta abierta dejó que Jill contara su propia historia — y acaba de compartir algo importante.",
+             "Las preguntas cerradas dan respuestas cortas — te has quedado con un número, no con su historia. Recuerda: el prospecto debe hablar el 80% del tiempo."]},
+   {note:"Conoces algo de su pasado. Ahora el presente — qué lugar ocupa el inglés en su vida hoy.",
+    question:"¿Cómo exploras su situación actual?",
+    opts:["«Y ahora mismo, ¿dónde notas que el inglés importa más en tu día a día?»",
+          "«No te preocupes — nuestro método arregla rápido los problemas para hablar.»"],
+    reactions:["Sobre todo en la universidad. Leer se me da bien, la verdad. Pero hablar en los seminarios me da muchísimo miedo.",
+               "Ya… pero todavía no conoces bien mi situación."],
+    coaches:["Ahora conoces la dificultad real: hablar, no leer. Eso es el descubrimiento funcionando.",
+             "Así se enfría un contacto caliente: solución antes que necesidad. Quédate un poco más en el descubrimiento."]},
+   {note:"Entiendes su presente. Ahora abre el futuro — hasta dónde quiere que el inglés la lleve.",
+    question:"¿Cómo abres su futuro?",
+    opts:["«¿Hasta dónde te gustaría que te llevara tu inglés? ¿Cuál es el sueño?»",
+          "«Entonces solo quieres aprobar el examen, ¿no?»"],
+    reactions:["¿Sinceramente? Quiero estudiar en una universidad de Estados Unidos. Ese es el sueño de verdad.",
+               "Bueno… sí, pero es más que eso."],
+    coaches:["Una pregunta abierta sobre el futuro hizo salir el objetivo real. Es mucho más grande que «aprobar un examen».",
+             "Una pregunta cerrada la encierra — abre el futuro para que salga el sueño de verdad."]},
+   {note:"Ha compartido un gran sueño. Quédate en lo humano un momento antes de profundizar.",
+    question:"Acaba de nombrar un gran objetivo. ¿Qué haces?",
+    opts:["«Es un objetivo maravilloso. ¿Qué es lo que más te ilusiona de estudiar en Estados Unidos?»",
+          "«Genial. Vamos a ver qué curso te encajaría mejor.»"],
+    reactions:["Mi hermano mayor estudió allí. Lo quiero desde que era pequeña. Pero después de suspender dos veces… empecé a pensar que a lo mejor no es para mí.",
+               "Ah — vale. Pensaba que seguíamos hablando de mis objetivos."],
+    coaches:["Una pregunta humana más — y se abre la puerta al Hot Button. Fíjate en lo que acaba de admitir.",
+             "Correr al curso aquí se salta el momento más valioso — una pregunta humana más revela el Hot Button."]},
+   {note:"Acaba de mostrarte una emoción: después de suspender dos veces, duda de sí misma. Este es el Hot Button.",
+    question:"Este es el corazón emocional de la conversación. ¿Cómo respondes?",
+    opts:["«Parece que esto te importa de verdad, y esos dos exámenes te quitaron confianza. ¿Qué significaría para ti conseguirlo por fin?»",
+          "«Vale, entonces lo que necesitas es una nota más alta.»",
+          "«No nos detengamos en eso. Déjame enseñarte nuestro programa.»"],
+    reactions:["Significaría todo. Me demostraría a mí misma que suspender dos veces no me define.",
+               "O sea… sí. Pero no va realmente de la nota.",
+               "…Vale. Supongo."],
+    coaches:["Primero has reflejado la emoción y luego has preguntado. Eso es el Hot Button — la razón emocional por la que decidirá.",
+             "Esa es la necesidad racional, pero el Hot Button es emocional — refleja primero la emoción.",
+             "Saltarse el Hot Button es la forma número uno de enfriar un contacto caliente — esta emoción es la razón de su sí."]},
+   {note:"Ya tienes todo lo que necesitas. Antes de cualquier solución, repite lo que has escuchado.",
+    question:"¿Cómo cierras el análisis de necesidades?",
+    opts:["«Déjame comprobar que lo he entendido. Quieres estudiar en Estados Unidos, leer se te da bien, hablar es donde quieres crecer, y llegar allí te demostraría a ti misma de lo que eres capaz. ¿Lo he entendido bien?»",
+          "«Perfecto. Aquí tienes nuestro curso de doce meses y el precio.»"],
+    reactions:["Sí. Exacto. Eso es — me has escuchado de verdad.",
+               "Ah — es mucho, todo de golpe. No estoy segura."],
+    coaches:["Repetir lo que has escuchado te gana el derecho a presentar una solución.",
+             "Encuadra antes de presentar — confirmar lo que has oído une el descubrimiento con la solución."]}
+  ]
+},
+
+/* --------------------------------------------------------------- Français */
+fr:{
+  lang:"fr",
+  fs:{ enter:"Plein écran", exit:"Quitter le plein écran", newtab:"Ouvrir dans un nouvel onglet", hint:"Appuyez sur F11 pour remplir l'écran" },
+  eyebrow:"Pratique · Do", title:"L'analyse des besoins de Jill",
+  warmthName:"Ouverture de Jill",
+  warmthStates:{high:"Ouverte et détendue",mid:"Se détend",low:"Se referme",cold:"Sur la réserve"},
+  continueBtn:"Continuer", tryAgainBtn:"Essayer une autre réponse",
+  setupHeading:"Avant de commencer",
+  setupTask:"Comprenez Jill complètement avant de proposer quoi que ce soit — parcourez les sept phases. Pas encore de cours, de formule ni de tarif.",
+  startBtn:"Commencer la conversation",
+  youLabel:"Vous (Conseiller)", jillLabel:"Jill",
+  phases:["Glace","Passé","Présent","Futur","Échange","Hot Button","Cadrage"],
+  recapTitle:"Ce qui a fonctionné",
+  recapBullets:[
+    "Une ouverture chaleureuse et humaine — avant la moindre vraie question.",
+    "Les questions ouvertes ont fait surgir la vraie histoire : la difficulté, c'est parler, pas lire.",
+    "Le Hot Button : avoir échoué deux fois l'a fait douter d'elle — c'est la raison émotionnelle qui la fera s'engager.",
+    "Vous avez reformulé ce que vous aviez entendu avant de proposer quoi que ce soit."
+  ],
+  finalBadge:"✓", finalTitle:"Vous avez terminé l'analyse des besoins de Jill",
+  finalBody:"Vous avez parcouru les sept phases sans imposer une solution trop tôt. Ce n'était que de la découverte — la solution vient ensuite, une fois que vous en avez gagné le droit.",
+  codeLabel:"Votre code de validation", code:"DISCOVERY-8020",
+  finalFoot:"Saisissez ce code sur l'écran suivant pour enregistrer que vous avez terminé la mise en situation.",
+  personaName:"Jill",
+  personaIntro:"Jill, 23 ans, a échoué à deux examens d'entrée d'anglais et rêve d'étudier aux États-Unis. Sympathique mais découragée. Vous êtes son conseiller — c'est son premier rendez-vous.",
+  phases_text:[
+   {note:"Jill vient de s'asseoir. C'est le tout début du rendez-vous.",
+    lead:"Bonjour… oui, je suis Jill. Désolée, je suis un peu nerveuse.",
+    question:"Comment ouvrez-vous ?",
+    opts:["« Bonjour Jill, ravi de vous rencontrer. Merci d'être venue aujourd'hui. Le trajet s'est bien passé ? »",
+          "« Parfait, vous venez pour les cours d'anglais. Je vais vous montrer ce que nous proposons. »",
+          "« Vous voulez améliorer votre anglais, c'est bien cela ? »"],
+    reactions:["Oh, merci. Ça s'est bien passé, en fait. Je me sens déjà un peu mieux.",
+               "Oh… d'accord. Je n'ai pas encore dit ce que je cherchais.",
+               "Euh, oui… je suppose."],
+    coaches:["Une ouverture chaleureuse et simple permet à Jill de se détendre — c'est ainsi que naît la confiance.",
+             "C'est le produit avant la personne. Le droit de présenter se gagne plus tard — commencez par la chaleur humaine.",
+             "Une question fermée donne un départ froid — ouvrez comme un vrai accueil, pas comme un formulaire."]},
+   {note:"Jill est installée. Vous voulez maintenant comprendre son histoire avec l'anglais.",
+    question:"Vous voulez connaître son passé avec l'anglais. Que demandez-vous ?",
+    opts:["« Pouvez-vous me parler un peu de votre expérience avec l'anglais jusqu'ici ? »",
+          "« Avez-vous étudié l'anglais à l'école ? Pendant combien d'années ? »"],
+    reactions:["Je l'ai étudié à l'école et à l'université. Mais j'ai déjà échoué deux fois à l'examen d'entrée. Je bloque toujours quand je dois parler.",
+               "Oui. Une dizaine d'années, je crois."],
+    coaches:["Une question ouverte a laissé Jill raconter sa propre histoire — et elle vient de partager quelque chose d'important.",
+             "Les questions fermées donnent des réponses courtes — vous avez obtenu un chiffre, pas son histoire. Rappelez-vous : le prospect doit parler 80 % du temps."]},
+   {note:"Vous connaissez un peu son passé. Place au présent — la place de l'anglais dans sa vie aujourd'hui.",
+    question:"Comment explorez-vous sa situation actuelle ?",
+    opts:["« Et en ce moment, où remarquez-vous que l'anglais compte le plus au quotidien ? »",
+          "« Ne vous inquiétez pas — notre méthode règle vite les problèmes à l'oral. »"],
+    reactions:["Surtout à l'université. La lecture, ça va, honnêtement. Mais parler en séminaire me fait vraiment peur.",
+               "D'accord… mais vous ne connaissez pas encore vraiment ma situation."],
+    coaches:["Vous connaissez maintenant la vraie difficulté : parler, pas lire. C'est la découverte qui fonctionne.",
+             "C'est ainsi qu'un contact chaud refroidit : la solution avant le besoin. Restez encore un peu en découverte."]},
+   {note:"Vous comprenez son présent. Ouvrez maintenant le futur — jusqu'où elle veut que l'anglais la mène.",
+    question:"Comment ouvrez-vous son futur ?",
+    opts:["« Jusqu'où aimeriez-vous que votre anglais vous mène ? Quel est le rêve ? »",
+          "« Donc vous voulez juste réussir votre examen, c'est ça ? »"],
+    reactions:["Honnêtement ? Je veux étudier dans une université aux États-Unis. C'est le vrai rêve.",
+               "Eh bien… oui, mais il y a plus que cela."],
+    coaches:["Une question ouverte sur l'avenir a fait émerger le vrai objectif. C'est bien plus grand que « réussir un examen ».",
+             "Une question fermée l'enferme — ouvrez le futur pour que le vrai rêve puisse sortir."]},
+   {note:"Elle a partagé un grand rêve. Restez sur le plan humain un instant avant d'aller plus loin.",
+    question:"Elle vient d'énoncer un grand objectif. Que faites-vous ?",
+    opts:["« C'est un très beau projet. Qu'est-ce qui vous enthousiasme le plus dans l'idée d'étudier aux États-Unis ? »",
+          "« Très bien. Voyons quel cours vous conviendrait le mieux. »"],
+    reactions:["Mon frère aîné y a étudié. J'en rêve depuis l'enfance. Mais après avoir échoué deux fois… j'ai commencé à me dire que ce n'est peut-être pas pour moi.",
+               "Oh — d'accord. Je pensais qu'on parlait encore de mes objectifs."],
+    coaches:["Une question humaine de plus — et la porte du Hot Button s'ouvre. Remarquez ce qu'elle vient d'admettre.",
+             "Se précipiter vers le cours ici saute le moment le plus précieux — une question humaine de plus révèle le Hot Button."]},
+   {note:"Elle vient de vous montrer une émotion : après deux échecs, elle doute d'elle-même. C'est le Hot Button.",
+    question:"C'est le cœur émotionnel de la conversation. Comment réagissez-vous ?",
+    opts:["« J'ai l'impression que cela compte vraiment pour vous, et ces deux examens ont entamé votre confiance. Qu'est-ce que cela représenterait d'y arriver enfin ? »",
+          "« D'accord, donc ce qu'il vous faut, c'est une meilleure note. »",
+          "« Ne nous attardons pas là-dessus. Laissez-moi vous montrer notre programme. »"],
+    reactions:["Cela représenterait tout. Cela me prouverait que ces deux échecs ne me définissent pas.",
+               "Enfin… oui. Mais ce n'est pas vraiment une question de note.",
+               "…D'accord. Si vous voulez."],
+    coaches:["Vous avez d'abord reflété l'émotion, puis posé la question. C'est le Hot Button — la raison émotionnelle de son engagement.",
+             "C'est le besoin rationnel, mais le Hot Button est émotionnel — reflétez d'abord l'émotion.",
+             "Sauter le Hot Button est la première cause de refroidissement d'un contact chaud — c'est cette émotion qui la fera dire oui."]},
+   {note:"Vous avez tout ce qu'il vous faut. Avant toute solution, reformulez ce que vous avez entendu.",
+    question:"Comment concluez-vous l'analyse des besoins ?",
+    opts:["« Je vérifie que j'ai bien compris. Vous voulez étudier aux États-Unis, votre lecture est solide, c'est à l'oral que vous voulez progresser, et y parvenir vous prouverait ce dont vous êtes capable. C'est bien cela ? »",
+          "« Parfait. Voici notre cours de douze mois et le tarif. »"],
+    reactions:["Oui. Exactement. C'est ça — vous m'avez vraiment écoutée.",
+               "Oh — cela fait beaucoup, d'un coup. Je ne suis pas sûre."],
+    coaches:["Reformuler ce que vous avez entendu vous donne le droit de présenter ensuite une solution.",
+             "Cadrez avant de présenter — confirmer ce que vous avez entendu relie la découverte à la solution."]}
+  ]
+},
+
+/* ----------------------------------------------------------------- العربية */
+ar:{
+  lang:"ar",
+  fs:{ enter:"ملء الشاشة", exit:"إنهاء ملء الشاشة", newtab:"فتح في تبويب جديد", hint:"اضغط F11 لملء الشاشة" },
+  eyebrow:"تدريب · Do", title:"تحليل احتياجات جيل",
+  warmthName:"انفتاح جيل",
+  warmthStates:{high:"منفتحة ومرتاحة",mid:"بدأت تنفتح",low:"بدأت تنسحب",cold:"متحفّظة"},
+  continueBtn:"متابعة", tryAgainBtn:"جرّب إجابة أخرى",
+  setupHeading:"قبل أن تبدأ",
+  setupTask:"افهم جيل فهمًا كاملًا قبل أن تعرض عليها أي شيء — امضِ في المراحل السبع كلها. لا دورة ولا خطة ولا سعر بعد.",
+  startBtn:"ابدأ الحوار",
+  youLabel:"أنت (المستشار)", jillLabel:"جيل",
+  phases:["كسر الجمود","الماضي","الحاضر","المستقبل","حوار","النقطة الحساسة","التأطير"],
+  recapTitle:"ما الذي جعل هذا ينجح",
+  recapBullets:[
+    "بداية دافئة وإنسانية — قبل أي سؤال جادّ.",
+    "الأسئلة المفتوحة كشفت القصة الحقيقية: الصعوبة في التحدث لا في القراءة.",
+    "النقطة الحساسة: الرسوب مرتين جعلها تشكّ في نفسها — وهذا هو السبب العاطفي الذي سيدفعها للالتزام.",
+    "أعدت صياغة ما سمعته قبل أن تعرض أي شيء."
+  ],
+  finalBadge:"✓", finalTitle:"أكملت تحليل احتياجات جيل",
+  finalBody:"مررت بالمراحل السبع كلها دون أن تدفع بحل قبل أوانه. كان هذا استكشافًا فقط — الحل يأتي لاحقًا، بعد أن تكسب الحق في عرضه.",
+  codeLabel:"رمز الإتمام الخاص بك", code:"DISCOVERY-8020",
+  finalFoot:"أدخل هذا الرمز في الشاشة التالية لتسجيل إتمامك لهذا التدريب.",
+  personaName:"جيل",
+  personaIntro:"جيل، ٢٣ سنة، رسبت في اختباري قبول في الإنجليزية وتحلم بالدراسة في الولايات المتحدة. ودودة لكنها محبطة. أنت مستشارها — وهذا موعدها الأول.",
+  phases_text:[
+   {note:"جلست جيل للتو. هذه هي بداية الموعد تمامًا.",
+    lead:"مرحبًا… نعم، أنا جيل. أعتذر، أنا متوتّرة قليلًا.",
+    question:"كيف تبدأ؟",
+    opts:["«مرحبًا جيل، سعيد جدًا بلقائكِ. شكرًا لحضوركِ اليوم. كيف كان طريقكِ إلى هنا؟»",
+          "«ممتاز، أنتِ هنا من أجل دروس الإنجليزية. دعيني أعرض عليكِ ما نقدّمه.»",
+          "«تريدين تحسين إنجليزيتكِ، صحيح؟»"],
+    reactions:["أوه، شكرًا. كان جيدًا في الواقع. أشعر بتحسّن بالفعل.",
+               "أوه… حسنًا. لم أقل بعد ما الذي أبحث عنه.",
+               "همم، نعم… أظن ذلك."],
+    coaches:["البداية الدافئة السهلة تتيح لجيل أن ترتاح — وهكذا تبدأ الثقة.",
+             "هذا تقديم للمنتج قبل الشخص. حق العرض يُكتسب لاحقًا — ابدأ بالدفء الإنساني.",
+             "السؤال المغلق يجعل البداية باردة — افتح الحديث كترحيب حقيقي لا كاستمارة."]},
+   {note:"استقرّت جيل. الآن تريد أن تفهم قصتها مع الإنجليزية.",
+    question:"تريد أن تعرف ماضيها مع الإنجليزية. ماذا تسأل؟",
+    opts:["«هل يمكنكِ أن تحدّثيني قليلًا عن تجربتكِ مع الإنجليزية حتى الآن؟»",
+          "«هل درستِ الإنجليزية في المدرسة؟ كم سنة؟»"],
+    reactions:["درستها في المدرسة وفي الجامعة. لكنني رسبت في اختبار القبول مرتين حتى الآن. أتوقّف دائمًا حين يتعيّن عليّ التحدث.",
+               "نعم. نحو عشر سنوات، على ما أظن."],
+    coaches:["السؤال المفتوح أتاح لجيل أن تروي قصتها بنفسها — وقد شاركت للتو أمرًا مهمًا.",
+             "الأسئلة المغلقة تعطي إجابات قصيرة — حصلت على رقم لا على قصتها. تذكّر أن العميل المحتمل ينبغي أن يتحدث ٨٠٪ من الوقت."]},
+   {note:"تعرف شيئًا عن ماضيها. الآن الحاضر — أين تقع الإنجليزية في حياتها اليوم.",
+    question:"كيف تستكشف وضعها الحالي؟",
+    opts:["«وفي الوقت الحالي، أين تلاحظين أن الإنجليزية تهمّ أكثر في حياتكِ اليومية؟»",
+          "«لا تقلقي — طريقتنا تحلّ مشكلات التحدث بسرعة.»"],
+    reactions:["في الجامعة غالبًا. قراءتي جيدة، بصراحة. لكن التحدث في الحلقات الدراسية يخيفني حقًا.",
+               "حسنًا… لكنك لا تعرف وضعي جيدًا بعد."],
+    coaches:["الآن تعرف الصعوبة الحقيقية: التحدث لا القراءة. هذا هو الاستكشاف وهو يؤدي عمله.",
+             "هكذا يبرد العميل المهتم: الحل قبل الحاجة. ابقَ في مرحلة الاستكشاف قليلًا بعد."]},
+   {note:"فهمت حاضرها. الآن افتح المستقبل — إلى أين تريد أن تأخذها الإنجليزية.",
+    question:"كيف تفتح حديث المستقبل معها؟",
+    opts:["«إلى أين تودّين أن تأخذكِ الإنجليزية؟ ما هو الحلم؟»",
+          "«إذن أنتِ تريدين فقط اجتياز الاختبار، صحيح؟»"],
+    reactions:["بصراحة؟ أريد الدراسة في جامعة في الولايات المتحدة. هذا هو الحلم الحقيقي.",
+               "حسنًا… نعم، لكن الأمر أكبر من ذلك."],
+    coaches:["السؤال المفتوح عن المستقبل أظهر الهدف الحقيقي. وهو أكبر بكثير من «اجتياز اختبار».",
+             "السؤال المغلق يحاصرها — افتح المستقبل ليخرج الحلم الحقيقي."]},
+   {note:"شاركت حلمًا كبيرًا. ابقَ على المستوى الإنساني لحظة قبل أن تتعمّق أكثر.",
+    question:"لقد ذكرت للتو هدفًا كبيرًا. ماذا تفعل؟",
+    opts:["«هذا هدف رائع. ما الذي يحمّسكِ أكثر في فكرة الدراسة في الولايات المتحدة؟»",
+          "«ممتاز. لننظر في الدورة التي تناسبكِ أكثر.»"],
+    reactions:["أخي الأكبر درس هناك. أرغب في ذلك منذ كنت طفلة. لكن بعد الرسوب مرتين… بدأت أظن أن الأمر ربما ليس لي.",
+               "أوه — حسنًا. ظننت أننا ما زلنا نتحدث عن أهدافي."],
+    coaches:["سؤال إنساني آخر — وينفتح باب النقطة الحساسة. لاحظ ما اعترفت به للتو.",
+             "الاندفاع نحو الدورة هنا يتخطّى أثمن لحظة — سؤال إنساني آخر يكشف النقطة الحساسة."]},
+   {note:"أظهرت لك للتو شعورًا: بعد الرسوب مرتين، صارت تشك في نفسها. هذه هي النقطة الحساسة.",
+    question:"هذا هو القلب العاطفي للحوار. بماذا تردّ؟",
+    opts:["«يبدو أن هذا يعني لكِ الكثير حقًا، وأن ذينك الاختبارين هزّا ثقتكِ بنفسكِ. ماذا سيعني لكِ أن تصلي أخيرًا؟»",
+          "«حسنًا، إذن ما تحتاجينه هو درجة أعلى في الاختبار.»",
+          "«لا داعي للتوقف عند هذا. دعيني أعرض عليكِ برنامجنا.»"],
+    reactions:["سيعني لي كل شيء. سيثبت لنفسي أن الرسوب مرتين لا يحدّد من أكون.",
+               "أقصد… نعم. لكن الأمر ليس متعلقًا بالدرجة حقًا.",
+               "…حسنًا. كما تشاء."],
+    coaches:["عكست الشعور أولًا ثم سألت. هذه هي النقطة الحساسة — السبب العاطفي الذي سيدفعها للالتزام.",
+             "تلك هي الحاجة المنطقية، أما النقطة الحساسة فهي عاطفية — اعكس الشعور أولًا.",
+             "تخطّي النقطة الحساسة هو السبب الأول لبرود عميل مهتم — هذا الشعور هو ما سيجعلها تقول نعم."]},
+   {note:"لديك كل ما تحتاجه. قبل أي حل، أعد صياغة ما سمعته.",
+    question:"كيف تُنهي تحليل الاحتياجات؟",
+    opts:["«دعيني أتأكد أنني فهمت. تريدين الدراسة في الولايات المتحدة، وقراءتكِ جيدة، والتحدث هو ما تريدين تطويره، والوصول إلى هناك سيثبت لكِ ما أنتِ قادرة عليه. هل فهمت بشكل صحيح؟»",
+          "«ممتاز. إليكِ دورتنا لاثني عشر شهرًا والسعر.»"],
+    reactions:["نعم. بالضبط. هذا هو — لقد أصغيت إليّ فعلًا.",
+               "أوه — هذا كثير، ودفعة واحدة. لست متأكدة."],
+    coaches:["إعادة صياغة ما سمعته تمنحك الحق في عرض الحل بعد ذلك.",
+             "أطّر قبل أن تعرض — تأكيد ما سمعته هو الجسر بين الاستكشاف والحل."]}
+  ]
+}
+
 };
 
-/* =====================================================================
-   2. SCENARIO — the conversation (translate the text values)
-   ===================================================================== */
-const SCENARIO = {
-  persona:{
-    name:"Jill",
-    intro:"Jill, 23, has failed two English entrance exams and dreams of studying in the US. Friendly but discouraged. You're her consultant — this is her first appointment."
-  },
-  startWarmth:55,
-  phases:[
-    { key:"ice",
-      note:"Jill has just sat down. This is the very start of the appointment.",
-      lead:{who:"jill", text:"Hi… yes, I'm Jill. Sorry, I'm a little nervous.", audio:null},
-      question:"How do you open?",
-      options:[
-        { text:"\u201cHi Jill, it's really nice to meet you. Thank you for coming in today. How was your journey over?\u201d", correct:true, delta:+10,
-          reaction:{who:"jill", text:"Oh, thank you. It was fine, actually. I'm feeling a bit better already.", audio:null},
-          coach:"A warm, easy opening lets Jill relax — that's how trust starts." },
-        { text:"\u201cGreat, you're here for English classes. Let me show you what we offer.\u201d", correct:false, delta:-12,
-          reaction:{who:"jill", text:"Oh… okay. I haven't really said what I'm looking for yet.", audio:null},
-          coach:"That's product before person. Earn the right to present later — start with warmth." },
-        { text:"\u201cYou want to improve your English, correct?\u201d", correct:false, delta:-6,
-          reaction:{who:"jill", text:"Um, yes… I suppose so.", audio:null},
-          coach:"A closed question makes a cold start — open like a real welcome, not a form." }
-      ]},
-    { key:"past",
-      note:"Jill is settled. Now you want to understand her story with English.",
-      question:"You want to learn about her past with English. What do you ask?",
-      options:[
-        { text:"\u201cCan you tell me a little about your experience with English so far?\u201d", correct:true, delta:+8,
-          reaction:{who:"jill", text:"I studied it at school and at university. But I've failed the entrance exam twice now. I always get stuck when I have to speak.", audio:null},
-          coach:"An open question let Jill tell her own story — and she just shared something important." },
-        { text:"\u201cDid you study English at school? For how many years?\u201d", correct:false, delta:-6,
-          reaction:{who:"jill", text:"Yes. About ten years, I think.", audio:null},
-          coach:"Closed questions get short answers — you learned a number, not her story. Remember, the prospect should be doing 80% of the talking." }
-      ]},
-    { key:"present",
-      note:"You know a little of her past. Now the present — where English sits in her life today.",
-      question:"How do you explore her present situation?",
-      options:[
-        { text:"\u201cAnd right now, where do you notice English matters most in your daily life?\u201d", correct:true, delta:+8,
-          reaction:{who:"jill", text:"Mostly at university. My reading is okay, honestly. But speaking in seminars really scares me.", audio:null},
-          coach:"Now you know the real difficulty: speaking, not reading. That's discovery working." },
-        { text:"\u201cDon't worry — our method fixes speaking problems quickly.\u201d", correct:false, delta:-12,
-          reaction:{who:"jill", text:"Right… but you don't really know my situation yet.", audio:null},
-          coach:"This is how warm leads go cold: solution before need. Stay in discovery a little longer." }
-      ]},
-    { key:"future",
-      note:"You understand her present. Now open the future — where she wants English to take her.",
-      question:"How do you open up her future?",
-      options:[
-        { text:"\u201cWhere would you like your English to take you? What's the dream?\u201d", correct:true, delta:+10,
-          reaction:{who:"jill", text:"Honestly? I want to study at a university in the United States. That's the real dream.", audio:null},
-          coach:"An open future question let the real goal surface. This is far bigger than \u2018pass an exam\u2019." },
-        { text:"\u201cSo you just want to pass your exam, right?\u201d", correct:false, delta:-8,
-          reaction:{who:"jill", text:"Well… yes, but there's more to it than that.", audio:null},
-          coach:"A closed question boxes her in — open the future so the real dream can come out." }
-      ]},
-    { key:"talk",
-      note:"She has shared a big dream. Stay human for a moment before you dig deeper.",
-      question:"She has just named a big goal. What do you do?",
-      options:[
-        { text:"\u201cThat's a wonderful goal. What is it about studying in the US that excites you most?\u201d", correct:true, delta:+8,
-          reaction:{who:"jill", text:"My older brother studied there. I've wanted it since I was a kid. But after failing twice… I started to think maybe it's just not for me.", audio:null},
-          coach:"One more human question — and the door to the Hot Button opens. Notice what she just admitted." },
-        { text:"\u201cGreat. Let's look at which course would fit you best.\u201d", correct:false, delta:-10,
-          reaction:{who:"jill", text:"Oh — okay. I thought we were still talking about my goals.", audio:null},
-          coach:"Rushing to the course here skips the most valuable moment — one more human question reveals the Hot Button." }
-      ]},
-    { key:"hotbutton",
-      note:"She has just shown you a feeling: after failing twice, she doubts herself. This is the Hot Button.",
-      question:"This is the emotional heart of the conversation. How do you respond?",
-      options:[
-        { text:"\u201cIt sounds like this really matters to you, and those two exams knocked your confidence. What would it mean to you to finally get there?\u201d", correct:true, delta:+14,
-          reaction:{who:"jill", text:"It would mean everything. It would prove to myself that failing twice didn't define me.", audio:null},
-          coach:"You reflected the feeling first, then asked. That's the Hot Button — the emotional reason she will commit." },
-        { text:"\u201cOkay, so what you need is a higher test score.\u201d", correct:false, delta:-10,
-          reaction:{who:"jill", text:"I mean… yes. But it's not really about the score.", audio:null},
-          coach:"That's the rational need, but the Hot Button is emotional — reflect the feeling first." },
-        { text:"\u201cLet's not dwell on that. Let me show you our programme.\u201d", correct:false, delta:-16,
-          reaction:{who:"jill", text:"…Sure. I guess.", audio:null},
-          coach:"Skipping the Hot Button is the #1 way a warm lead goes cold — this feeling is why she'll say yes." }
-      ]},
-    { key:"frame",
-      note:"You have everything you need. Before any solution, frame back what you heard.",
-      question:"How do you close the Needs Analysis?",
-      options:[
-        { text:"\u201cSo let me check I've understood. You want to study in the US, your reading is solid, speaking is where you want to grow, and getting there would prove to yourself what you're capable of. Have I got that right?\u201d", correct:true, delta:+10,
-          reaction:{who:"jill", text:"Yes. Exactly. That's it — you really listened.", audio:null},
-          coach:"Framing back what you heard earns the right to present a solution next." },
-        { text:"\u201cPerfect. Here's our twelve-month course and the price.\u201d", correct:false, delta:-12,
-          reaction:{who:"jill", text:"Oh — that's a lot, all at once. I'm not sure.", audio:null},
-          coach:"Frame before you present — confirming what you heard bridges discovery to the solution." }
-      ]}
-  ]
+const LANG_NAMES={en:"English",it:"Italiano",pt:"Português",es:"Español",fr:"Français",ar:"العربية"};
+const RTL=["ar"];
+
+function normalizeLang(l){
+  if(!l) return "en";
+  l=String(l).toLowerCase();
+  if(I18N[l]) return l;
+  const base=l.split("-")[0];
+  return I18N[base]?base:"en";
+}
+const LANG=normalizeLang(new URLSearchParams(location.search).get("lang")||navigator.language);
+document.documentElement.dir=RTL.indexOf(LANG)>=0?"rtl":"ltr";
+
+const T=I18N[LANG];
+const UI={
+  lang:T.lang, fs:T.fs, eyebrow:T.eyebrow, title:T.title,
+  warmthName:T.warmthName, warmthStates:T.warmthStates,
+  continueBtn:T.continueBtn, tryAgainBtn:T.tryAgainBtn,
+  setupHeading:T.setupHeading, setupTask:T.setupTask, startBtn:T.startBtn,
+  youLabel:T.youLabel, jillLabel:T.jillLabel, phases:T.phases,
+  recapTitle:T.recapTitle, recapBullets:T.recapBullets,
+  finalBadge:T.finalBadge, finalTitle:T.finalTitle, finalBody:T.finalBody,
+  codeLabel:T.codeLabel, code:T.code, finalFoot:T.finalFoot
+};
+/* rebuild the scenario from shared structure + this language's text */
+const SCENARIO={
+  persona:{name:T.personaName, intro:T.personaIntro},
+  startWarmth:START_WARMTH,
+  phases:SHAPE.map((sh,i)=>{
+    const t=T.phases_text[i];
+    const p={key:sh.key, note:t.note, question:t.question,
+      options:t.opts.map((label,j)=>({
+        correct:j===sh.correct, delta:sh.delta[j], text:label,
+        reaction:{text:t.reactions[j], audio:null}, coach:t.coaches[j]
+      }))};
+    if(sh.lead) p.lead={text:t.lead, audio:null};
+    return p;
+  })
 };
 
 /* =====================================================================
@@ -520,6 +1057,98 @@ const SCENARIO = {
       '</div>';
   }
 
+
+  /* ===== fullscreen =====
+     The stage sizes itself to whatever box it is embedded in, and we do not
+     control that box. An LMS iframe taller than the learner's visible area puts
+     the lower half of the activity below the fold, where nothing inside the
+     iframe can detect it. This is the escape hatch.
+
+     It degrades fullscreen -> new tab -> hint, because an LMS may rewrite or
+     strip allowfullscreen on the iframe tag. Ported from SANDBOXTEMPLATE; the
+     toast and i18n lookups it relied on do not exist here, so the labels come
+     from the activity's own copy object and the hint borrows the button label. */
+  const FS = UI.fs;
+  const FS_W = 920, FS_H = 640;
+  const fsBtn = document.getElementById("fsBtn");
+  const fsLabelEl = fsBtn && fsBtn.querySelector(".fs-label");
+  const fsEl = () => document.fullscreenElement || document.webkitFullscreenElement || null;
+  // false when the embedding iframe carries no allowfullscreen
+  const fsSupported = !!(document.fullscreenEnabled || document.webkitFullscreenEnabled);
+  // about:srcdoc, blob: and data: cannot be reopened as a top-level document
+  const fsCanPopOut = /^https?:$/.test(location.protocol);
+  let fsMode = fsSupported ? "fullscreen" : (fsCanPopOut ? "popout" : "hint");
+  let fsHintTimer;
+
+  function syncFsLabel(){
+    if(!fsBtn) return;
+    const on = !!fsEl();
+    const t = fsMode === "popout" ? FS.newtab : on ? FS.exit : FS.enter;
+    fsLabelEl.textContent = t; fsBtn.title = t;
+    fsBtn.classList.toggle("is-on", on);
+    // aria-pressed describes a toggle; in popout mode this is a one-way action,
+    // so drop the attribute rather than lie with "false"
+    if(fsMode === "popout") fsBtn.removeAttribute("aria-pressed");
+    else fsBtn.setAttribute("aria-pressed", on ? "true" : "false");
+  }
+  // there is no toast component in these activities, so the hint borrows the
+  // button's own label for a few seconds
+  function fsHint(){
+    if(!fsBtn) return;
+    fsLabelEl.textContent = FS.hint; fsBtn.title = FS.hint;
+    clearTimeout(fsHintTimer); fsHintTimer = setTimeout(syncFsLabel, 4000);
+  }
+  function fsDemote(){ fsMode = fsCanPopOut ? "popout" : "hint"; syncFsLabel(); fsHint(); }
+
+  /* Scale the stage rather than stretch it. This is a fixed 920xH design, so
+     plain fullscreen on a large monitor would just centre a postage stamp in a
+     huge field and read as broken. Text scales as vectors and nothing reflows. */
+  function fitStage(){
+    const st = document.querySelector(".stage"); if(!st) return;
+    const s = fsEl() ? Math.min(innerWidth / FS_W, innerHeight / FS_H) : 1;
+    st.style.setProperty("--fs-scale", Math.max(1, Math.min(2, s)).toFixed(3));
+  }
+
+  function toggleFullscreen(){
+    if(fsMode === "hint"){ fsHint(); return; }
+    if(fsMode === "popout"){
+      // returns null when the iframe is sandboxed without allow-popups
+      if(!window.open(location.href, "_blank", "noopener")){ fsMode = "hint"; fsDemote(); }
+      return;
+    }
+    if(fsEl()){ (document.exitFullscreen || document.webkitExitFullscreen).call(document); return; }
+    /* documentElement, NOT .stage: element fullscreen forces width/height:100%
+       over the fixed design and paints an opaque black ::backdrop, which would
+       replace the activity's own ground. */
+    const el = document.documentElement;
+    const req = el.requestFullscreen || el.webkitRequestFullscreen;
+    if(!req){ fsDemote(); return; }
+    // webkitRequestFullscreen returns undefined rather than a Promise, and a
+    // request can still be refused after fullscreenEnabled read true
+    Promise.resolve(req.call(el)).catch(fsDemote);
+  }
+
+  if(fsBtn) fsBtn.addEventListener("click", toggleFullscreen);
+  /* The change event is the source of truth, never the click handler: Esc, F11,
+     a refused request and the window manager all change state without it. */
+  ["fullscreenchange","webkitfullscreenchange"].forEach(ev =>
+    document.addEventListener(ev, () => { syncFsLabel(); fitStage(); }));
+  addEventListener("resize", fitStage);
+  syncFsLabel(); fitStage();
+
+
+  /* ----- language switcher ----- */
+  (function(){
+    const sel=document.getElementById("langsel"); if(!sel) return;
+    Object.keys(I18N).forEach(c=>{
+      const o=document.createElement("option");
+      o.value=c; o.textContent=LANG_NAMES[c]||c; if(c===LANG) o.selected=true;
+      sel.appendChild(o);
+    });
+    sel.addEventListener("change",()=>{
+      const u=new URL(location.href); u.searchParams.set("lang",sel.value); location.href=u.toString();
+    });
+  })();
   document.documentElement.lang = UI.lang;
   renderWarmth(); renderSetup();
 })();

@@ -77,7 +77,11 @@
   /* ---------- header / status ---------- */
   .topbar{
     background:var(--card);border-bottom:1px solid var(--line);
-    padding:14px 20px 12px;flex-shrink:0;
+    /* 50px of top padding reserves a band for the centred fullscreen button.
+       The button is absolutely positioned and opaque, so without the band a
+       title long enough to reach the centre has its ascenders covered --
+       which happens in most languages here, not just the longest. */
+    padding:50px 20px 12px;flex-shrink:0;
   }
   .eyebrow{font-size:.72rem;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);font-weight:700;margin:0 0 4px}
   .title{font-family:"Lora",Georgia,serif;font-weight:600;color:var(--navy);font-size:1.5rem;line-height:1.15;margin:0 0 12px}
@@ -213,9 +217,8 @@
 
   @media (max-width:560px){
     .stage{width:100vw;height:100vh;border-radius:0}
-    /* the centred button would otherwise sit on top of the eyebrow and the
-       language select; give it a band of its own and trim it to clear them */
-    .topbar{padding-top:50px}
+    /* the band is reserved at every width now; just trim the button so it
+       still clears the eyebrow and the language select when narrow */
     .fs-btn{height:30px;padding:0 12px;font-size:.72rem;gap:6px}
     .scene{height:160px}
     .title{font-size:1.25rem}

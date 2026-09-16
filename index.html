@@ -937,6 +937,11 @@ const SCENARIO={
   const bJill = $("bubbleJill"), bYou = $("bubbleYou");
 
   let phaseIndex = 0, warmth = SCENARIO.startWarmth, resolved = false;
+  /* Jill's line currently on screen, and the one this phase opened with.
+     Only the opening phase carries a `lead`, so from phase 2 on the line
+     the learner is replying to IS her reaction to the previous answer --
+     it has to survive the phase change, and has to come back on retry. */
+  let jillLine = null, phaseOpenJill = null;
 
   $("eyebrow").textContent = UI.eyebrow;
   $("title").textContent = UI.title;
@@ -955,11 +960,13 @@ const SCENARIO={
   function setBubble(side, text){
     const b = side==="jill"?bJill:bYou;
     const say = side==="jill"?$("jillSay"):$("youSay");
-    if(text===null){ b.classList.remove("show","dim"); return; }
+    if(text===null){ b.classList.remove("show","dim"); if(side==="jill") jillLine=null; return; }
     say.textContent = text.replace(/^\u201c|\u201d$/g,"");
     b.classList.remove("dim"); b.classList.add("show");
+    if(side==="jill") jillLine = text;
   }
   function dim(side){ (side==="jill"?bJill:bYou).classList.add("dim"); }
+  function undim(side){ (side==="jill"?bJill:bYou).classList.remove("dim"); }
   function clearBubbles(){ setBubble("jill",null); setBubble("you",null); }
 
   function renderRail(){
@@ -996,9 +1003,14 @@ const SCENARIO={
   function renderPhase(){
     resolved=false; renderRail();
     const ph=SCENARIO.phases[phaseIndex];
-    clearBubbles();
+    /* Clear only YOUR previous answer. Wiping Jill's bubble too would leave
+       the learner choosing a reply with nothing on screen to reply to, since
+       no phase after the first supplies an opening line of its own. */
+    setBubble("you", null);
     $("sceneNote").textContent = ph.note || "";
     if(ph.lead){ setBubble("jill",ph.lead.text); playAudio(ph.lead); }
+    else undim("jill");   // carried over from the last phase, and live again
+    phaseOpenJill = jillLine;
 
     interaction.innerHTML="";
     const q=document.createElement("p"); q.className="prompt-q"; q.textContent=ph.question; interaction.appendChild(q);
@@ -1039,7 +1051,7 @@ const SCENARIO={
         v.remove(); actions.remove();
         warmth -= (opt.delta||0); renderWarmth();
         setBubble("you",null);
-        setBubble("jill", ph.lead?ph.lead.text:null);   // restore the opening bubble
+        setBubble("jill", phaseOpenJill);   // restore whatever opened this phase
         Array.from(list.children).forEach(c=>{ c.disabled=false; c.classList.remove("picked-good","picked-bad","other-hidden"); });
       });
       actions.appendChild(r);

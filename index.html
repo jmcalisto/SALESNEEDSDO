@@ -70,41 +70,26 @@
   }
   /* once the role-play is finished, the scene and rail/warmth give way
      entirely to the panel so the wrap-up has the full window to work with */
-  .stage.finished .scene,
-  .stage.finished .rail,
-  .stage.finished .warmth{display:none}
+  .stage.finished .scene{display:none}
 
   /* ---------- header / status ---------- */
+  /* One row: title, fullscreen, language. The button used to be absolutely
+     positioned and centred, which needed a 50px reserved band so it did not
+     cover the title's ascenders. As a flex sibling it cannot overlap, so the
+     band is gone and the header costs ~48px instead of ~150px. */
   .topbar{
     background:var(--card);border-bottom:1px solid var(--line);
-    /* 50px of top padding reserves a band for the centred fullscreen button.
-       The button is absolutely positioned and opaque, so without the band a
-       title long enough to reach the centre has its ascenders covered --
-       which happens in most languages here, not just the longest. */
-    padding:50px 20px 12px;flex-shrink:0;
+    padding:8px 14px;flex-shrink:0;
+    display:flex;align-items:center;gap:10px;
   }
-  .eyebrow{font-size:.72rem;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);font-weight:700;margin:0 0 4px}
-  .title{font-family:"Lora",Georgia,serif;font-weight:600;color:var(--navy);font-size:1.5rem;line-height:1.15;margin:0 0 12px}
-  .rail{display:flex;gap:6px;margin:12px 0 4px;flex-wrap:wrap}
-  .step{flex:1 1 0;min-width:56px;display:flex;flex-direction:column;align-items:center;gap:6px;font-size:.62rem;color:var(--muted);text-align:center;font-weight:600;letter-spacing:.02em}
-  .dot{width:100%;height:6px;border-radius:6px;background:var(--line);transition:background .4s ease}
-  .step.done .dot{background:var(--warm)}
-  .step.active .dot{background:var(--accent)}
-  .step.active{color:var(--navy)} .step.done{color:var(--ink-soft)}
-  .warmth{display:flex;align-items:center;gap:12px;margin-top:14px;padding-top:14px;border-top:1px solid var(--line)}
-  .warmth-avatar{width:40px;height:40px;border-radius:50%;flex:0 0 auto;background:var(--warm-soft);color:var(--warm);display:flex;align-items:center;justify-content:center;font-weight:700;transition:background .4s,color .4s}
-  .warmth-body{flex:1 1 auto;min-width:0}
-  .warmth-label{display:flex;justify-content:space-between;align-items:baseline;font-size:.75rem;color:var(--ink-soft);font-weight:600;margin-bottom:5px}
-  .warmth-state{color:var(--warm);transition:color .4s}
-  .warmth-track{height:8px;border-radius:8px;background:var(--line);overflow:hidden}
-  .warmth-fill{height:100%;width:55%;border-radius:8px;background:var(--warm);transition:width .5s ease,background .4s ease}
-  .cooling .warmth-avatar{background:var(--cool-soft);color:var(--cool)}
-  .cooling .warmth-fill{background:var(--cool)} .cooling .warmth-state{color:var(--cool)}
+  .title{font-family:"Lora",Georgia,serif;font-weight:600;color:var(--navy);
+    font-size:1.05rem;line-height:1.3;margin:0;flex:1 1 auto;min-width:0;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
   /* ---------- photo scene ---------- */
   .scene{
     position:relative;width:100%;overflow:hidden;
-    background:#22303c;flex-shrink:0;height:200px;
+    background:#22303c;flex-shrink:0;height:280px;
   }
   .scene-img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 35%;display:block}
   .scene::after{ /* soft top scrim so bubbles read on any photo */
@@ -217,12 +202,11 @@
 
   @media (max-width:560px){
     .stage{width:100vw;height:100vh;border-radius:0}
-    /* the band is reserved at every width now; just trim the button so it
-       still clears the eyebrow and the language select when narrow */
+    /* the row is tight at this width, so trim the button to keep the
+       title, the button and the language select on one line */
     .fs-btn{height:30px;padding:0 12px;font-size:.72rem;gap:6px}
-    .scene{height:160px}
-    .title{font-size:1.25rem}
-    .step{font-size:0;min-width:0}
+    .scene{height:200px}
+    .title{font-size:.95rem}
     .bubble{max-width:66%;padding:7px 10px 8px}
     .bubble .say{font-size:.76rem}
     .bubble.jill{top:2%;left:2%}
@@ -237,7 +221,7 @@
      rather than the Do-section ghost vocabulary, so it reads as the one control
      that is chrome rather than part of the role-play. Still absolutely
      positioned, so it costs no vertical height inside the fixed stage. */
-  .fs-btn{position:absolute;top:10px;left:50%;transform:translateX(-50%);z-index:30;
+  .fs-btn{flex:0 0 auto;
     display:inline-flex;align-items:center;gap:8px;
     height:34px;padding:0 16px;background:var(--fs-green);color:#fff;
     border:0;border-radius:999px;
@@ -254,7 +238,7 @@
   /* language switcher — header, top-right, in the row the fullscreen button
      vacated when it moved to centre. ?lang= stays the primary mechanism for
      LMS embeds. */
-  .langbar{position:absolute;top:12px;inset-inline-end:16px}
+  .langbar{flex:0 0 auto}
   .langbar select{font:inherit;font-size:.72rem;font-weight:700;color:var(--navy);
     background:transparent;border:1.5px solid var(--line);border-radius:10px;
     padding:5px 8px;cursor:pointer}
@@ -267,24 +251,14 @@
   [dir="rtl"] body{font-family:'Noto Sans Arabic','Segoe UI',Tahoma,system-ui,sans-serif}
   [dir="rtl"] .title,[dir="rtl"] .final h2,[dir="rtl"] .code-box .code{
     font-family:'Noto Sans Arabic','Segoe UI',Tahoma,system-ui,sans-serif;font-weight:700}
-  [dir="rtl"] .eyebrow{letter-spacing:0}
 </style>
 </head>
 <body>
 <div class="stage">
   <header class="topbar">
-    <p class="eyebrow" id="eyebrow"></p>
     <h1 class="title" id="title"></h1>
     <button class="fs-btn" id="fsBtn" type="button" aria-pressed="false"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3H3v5M16 3h5v5M8 21H3v-5M16 21h5v-5"/></svg><span class="fs-label" aria-live="polite"></span></button>
     <div class="langbar"><select id="langsel" aria-label="Language"></select></div>
-    <div class="rail" id="rail" aria-label="Conversation phases"></div>
-    <div class="warmth" id="warmthWrap">
-      <div class="warmth-avatar" id="warmthAvatar">J</div>
-      <div class="warmth-body">
-        <div class="warmth-label"><span id="warmthName"></span><span class="warmth-state" id="warmthState"></span></div>
-        <div class="warmth-track" aria-hidden="true"><div class="warmth-fill" id="warmthFill"></div></div>
-      </div>
-    </div>
   </header>
 
   <div class="scene" id="scene">
@@ -336,9 +310,7 @@ const I18N = {
 en:{
   lang:"en",
   fs:{ enter:"Fullscreen", exit:"Exit fullscreen", hint:"Press F11 to fill your screen" },
-  eyebrow:"Do · Practice", title:"Jill's Needs Analysis",
-  warmthName:"Jill's warmth",
-  warmthStates:{high:"Open and relaxed",mid:"Warming up",low:"Pulling back",cold:"Guarded"},
+title:"Jill's Needs Analysis",
   continueBtn:"Continue", tryAgainBtn:"Try another response",
   setupHeading:"Before you begin",
   setupTask:"Understand Jill fully before you offer anything — walk all seven phases. No course, plan, or price yet.",
@@ -429,9 +401,7 @@ en:{
 it:{
   lang:"it",
   fs:{ enter:"Schermo intero", exit:"Esci da schermo intero", hint:"Premi F11 per riempire lo schermo" },
-  eyebrow:"Pratica · Do", title:"L'analisi dei bisogni di Jill",
-  warmthName:"Apertura di Jill",
-  warmthStates:{high:"Aperta e rilassata",mid:"Si sta aprendo",low:"Si sta chiudendo",cold:"Sulla difensiva"},
+title:"L'analisi dei bisogni di Jill",
   continueBtn:"Continua", tryAgainBtn:"Prova un'altra risposta",
   setupHeading:"Prima di iniziare",
   setupTask:"Capisci Jill fino in fondo prima di proporle qualcosa — attraversa tutte e sette le fasi. Ancora nessun corso, piano o prezzo.",
@@ -522,9 +492,7 @@ it:{
 pt:{
   lang:"pt",
   fs:{ enter:"Ecrã inteiro", exit:"Sair do ecrã inteiro", hint:"Prima F11 para preencher o ecrã" },
-  eyebrow:"Prática · Do", title:"A análise de necessidades da Jill",
-  warmthName:"Abertura da Jill",
-  warmthStates:{high:"Aberta e descontraída",mid:"A aquecer",low:"A recuar",cold:"Na defensiva"},
+title:"A análise de necessidades da Jill",
   continueBtn:"Continuar", tryAgainBtn:"Tentar outra resposta",
   setupHeading:"Antes de começar",
   setupTask:"Compreenda a Jill por completo antes de propor seja o que for — percorra as sete fases. Ainda sem curso, plano ou preço.",
@@ -614,9 +582,7 @@ pt:{
 es:{
   lang:"es",
   fs:{ enter:"Pantalla completa", exit:"Salir de pantalla completa", hint:"Pulsa F11 para ocupar toda la pantalla" },
-  eyebrow:"Práctica · Do", title:"El análisis de necesidades de Jill",
-  warmthName:"Apertura de Jill",
-  warmthStates:{high:"Abierta y relajada",mid:"Entrando en confianza",low:"Se está cerrando",cold:"A la defensiva"},
+title:"El análisis de necesidades de Jill",
   continueBtn:"Continuar", tryAgainBtn:"Prueba otra respuesta",
   setupHeading:"Antes de empezar",
   setupTask:"Comprende a Jill del todo antes de ofrecerle nada — recorre las siete fases. Todavía sin curso, plan ni precio.",
@@ -707,9 +673,7 @@ es:{
 fr:{
   lang:"fr",
   fs:{ enter:"Plein écran", exit:"Quitter le plein écran", hint:"Appuyez sur F11 pour remplir l'écran" },
-  eyebrow:"Pratique · Do", title:"L'analyse des besoins de Jill",
-  warmthName:"Ouverture de Jill",
-  warmthStates:{high:"Ouverte et détendue",mid:"Se détend",low:"Se referme",cold:"Sur la réserve"},
+title:"L'analyse des besoins de Jill",
   continueBtn:"Continuer", tryAgainBtn:"Essayer une autre réponse",
   setupHeading:"Avant de commencer",
   setupTask:"Comprenez Jill complètement avant de proposer quoi que ce soit — parcourez les sept phases. Pas encore de cours, de formule ni de tarif.",
@@ -800,9 +764,7 @@ fr:{
 ar:{
   lang:"ar",
   fs:{ enter:"ملء الشاشة", exit:"إنهاء ملء الشاشة", hint:"اضغط F11 لملء الشاشة" },
-  eyebrow:"تدريب · Do", title:"تحليل احتياجات جيل",
-  warmthName:"انفتاح جيل",
-  warmthStates:{high:"منفتحة ومرتاحة",mid:"بدأت تنفتح",low:"بدأت تنسحب",cold:"متحفّظة"},
+title:"تحليل احتياجات جيل",
   continueBtn:"متابعة", tryAgainBtn:"جرّب إجابة أخرى",
   setupHeading:"قبل أن تبدأ",
   setupTask:"افهم جيل فهمًا كاملًا قبل أن تعرض عليها أي شيء — امضِ في المراحل السبع كلها. لا دورة ولا خطة ولا سعر بعد.",
@@ -906,8 +868,7 @@ document.documentElement.dir=RTL.indexOf(LANG)>=0?"rtl":"ltr";
 
 const T=I18N[LANG];
 const UI={
-  lang:T.lang, fs:T.fs, eyebrow:T.eyebrow, title:T.title,
-  warmthName:T.warmthName, warmthStates:T.warmthStates,
+  lang:T.lang, fs:T.fs, title:T.title,
   continueBtn:T.continueBtn, tryAgainBtn:T.tryAgainBtn,
   setupHeading:T.setupHeading, setupTask:T.setupTask, startBtn:T.startBtn,
   youLabel:T.youLabel, jillLabel:T.jillLabel, phases:T.phases,
@@ -938,6 +899,7 @@ const SCENARIO={
   const $ = id => document.getElementById(id);
   const interaction = $("interaction");
   const bJill = $("bubbleJill"), bYou = $("bubbleYou");
+  const stage = document.querySelector(".stage");
 
   let phaseIndex = 0, warmth = SCENARIO.startWarmth, resolved = false;
   /* Jill's line currently on screen, and the one this phase opened with.
@@ -946,17 +908,10 @@ const SCENARIO={
      it has to survive the phase change, and has to come back on retry. */
   let jillLine = null, phaseOpenJill = null;
 
-  $("eyebrow").textContent = UI.eyebrow;
   $("title").textContent = UI.title;
-  $("warmthName").textContent = UI.warmthName;
   $("jillSp").textContent = UI.jillLabel;
   $("youSp").textContent = UI.youLabel;
 
-  const rail = $("rail");
-  UI.phases.forEach((label,i)=>{
-    const s=document.createElement("div"); s.className="step"; s.id="step-"+i;
-    s.innerHTML='<span class="dot"></span><span>'+label+'</span>'; rail.appendChild(s);
-  });
 
   function playAudio(line){ if(line&&line.audio){ try{ new Audio(line.audio).play().catch(()=>{});}catch(e){} } }
 
@@ -972,23 +927,15 @@ const SCENARIO={
   function undim(side){ (side==="jill"?bJill:bYou).classList.remove("dim"); }
   function clearBubbles(){ setBubble("jill",null); setBubble("you",null); }
 
-  function renderRail(){
-    UI.phases.forEach((_,i)=>{
-      const s=$("step-"+i); s.classList.remove("done","active");
-      if(i<phaseIndex) s.classList.add("done"); else if(i===phaseIndex) s.classList.add("active");
-    });
-  }
-  function band(){ return warmth>=75?"high":warmth>=50?"mid":warmth>=30?"low":"cold"; }
-  function renderWarmth(){
-    $("warmthFill").style.width = Math.max(6,Math.min(100,warmth))+"%";
-    const bd=band(); $("warmthState").textContent=UI.warmthStates[bd];
-    $("warmthWrap").classList.toggle("cooling", bd==="low"||bd==="cold");
-  }
+  /* The meter is gone from the UI, but the score is still tracked: SHAPE
+     carries the deltas, the retry path has to roll them back exactly, and a
+     future build may want to show it again. Mirrored to a data attribute so
+     it stays inspectable and testable without rendering anything. */
+  function syncWarmth(){ stage.dataset.warmth = Math.max(0,Math.min(100,warmth)); }
 
   function renderSetup(){
     clearBubbles();
     $("sceneNote").textContent = "";
-    UI.phases.forEach((_,i)=>$("step-"+i).classList.remove("done","active"));
     interaction.innerHTML =
       '<p class="prompt-q">'+UI.setupHeading+'</p>'+
       '<p class="setup-body">'+SCENARIO.persona.intro+'</p>'+
@@ -1004,7 +951,7 @@ const SCENARIO={
   }
 
   function renderPhase(){
-    resolved=false; renderRail();
+    resolved=false;
     const ph=SCENARIO.phases[phaseIndex];
     /* Clear only YOUR previous answer. Wiping Jill's bubble too would leave
        the learner choosing a reply with nothing on screen to reply to, since
@@ -1034,7 +981,7 @@ const SCENARIO={
     // Jill reacts (replaces her lead bubble)
     setTimeout(()=>{ setBubble("jill", opt.reaction.text); playAudio(opt.reaction); }, 220);
 
-    warmth += (opt.delta||0); renderWarmth();
+    warmth += (opt.delta||0); syncWarmth();
 
     Array.from(list.children).forEach(c=>{ c.disabled=true; if(c!==button) c.classList.add("other-hidden"); });
     button.classList.add(opt.correct?"picked-good":"picked-bad");
@@ -1052,7 +999,7 @@ const SCENARIO={
       const r=document.createElement("button"); r.className="btn ghost"; r.textContent=UI.tryAgainBtn;
       r.addEventListener("click",()=>{
         v.remove(); actions.remove();
-        warmth -= (opt.delta||0); renderWarmth();
+        warmth -= (opt.delta||0); syncWarmth();
         setBubble("you",null);
         setBubble("jill", phaseOpenJill);   // restore whatever opened this phase
         Array.from(list.children).forEach(c=>{ c.disabled=false; c.classList.remove("picked-good","picked-bad","other-hidden"); });
@@ -1069,8 +1016,8 @@ const SCENARIO={
   }
 
   function finish(){
-    phaseIndex=SCENARIO.phases.length; renderRail();
-    warmth=Math.max(warmth,80); renderWarmth();
+    phaseIndex=SCENARIO.phases.length;
+    warmth=Math.max(warmth,80); syncWarmth();
     clearBubbles(); $("sceneNote").textContent="";
     document.querySelector(".stage").classList.add("finished");
 
@@ -1174,7 +1121,7 @@ const SCENARIO={
     });
   })();
   document.documentElement.lang = UI.lang;
-  renderWarmth(); renderSetup();
+  syncWarmth(); renderSetup();
 })();
 </script>
 </body>

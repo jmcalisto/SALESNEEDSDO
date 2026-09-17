@@ -27,7 +27,7 @@ it `null` keeps the activity text-only.
 
 ## Design system
 
-This activity follows the shared "Do section" visual/interaction style used across Wall Street
-English sales training activities (see the companion style-guide repo for the full design
-tokens, component inventory, and a blank template for building new activities in the same
-style).
+This activity is the reference implementation of the shared "Do section" visual/interaction
+style used across Wall Street English sales training activities — see `_ref-SALESDOSTYLEGUIDE`
+for the full design tokens, component inventory, the panel budget, and a blank template for
+building new activities in the same style.
